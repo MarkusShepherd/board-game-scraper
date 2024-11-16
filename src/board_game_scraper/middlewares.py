@@ -22,7 +22,7 @@ class BoardGameScraperSpiderMiddleware:
 
     # def process_spider_input(
     #     self,
-    #     response: scrapy.responsetypes.Response,
+    #     response: scrapy.http.Response,
     #     spider: scrapy.Spider,
     # ):
     #     # Called for each response that goes through the spider
@@ -33,7 +33,7 @@ class BoardGameScraperSpiderMiddleware:
 
     # def process_spider_output(
     #     self,
-    #     response: scrapy.responsetypes.Response,
+    #     response: scrapy.http.Response,
     #     result,
     #     spider: scrapy.Spider,
     # ):
@@ -45,7 +45,7 @@ class BoardGameScraperSpiderMiddleware:
 
     # def process_spider_exception(
     #     self,
-    #     response: scrapy.responsetypes.Response,
+    #     response: scrapy.http.Response,
     #     exception,
     #     spider: scrapy.Spider,
     # ):
@@ -100,7 +100,7 @@ class BoardGameScraperDownloaderMiddleware:
     # def process_response(
     #     self,
     #     request,
-    #     response: scrapy.responsetypes.Response,
+    #     response: scrapy.http.Response,
     #     spider: scrapy.Spider,
     # ):
     #     # Called with the response returned from the downloader.

@@ -3,7 +3,7 @@ from collections.abc import Generator, Iterator
 from typing import Any
 
 import scrapy
-import scrapy.responsetypes
+import scrapy.http
 import scrapy.spiders
 
 
@@ -16,7 +16,7 @@ class BggSpider(scrapy.spiders.SitemapSpider):
     sitemap_rules = ((r"/xmlapi2/", "parse"),)
     sitemap_alternate_links = True
 
-    def _get_sitemap_body(self, response: scrapy.responsetypes.Response) -> bytes:
+    def _get_sitemap_body(self, response: scrapy.http.Response) -> bytes:
         sitemap_body = super()._get_sitemap_body(response)
         if sitemap_body is not None:
             assert isinstance(sitemap_body, bytes)
@@ -45,5 +45,5 @@ class BggSpider(scrapy.spiders.SitemapSpider):
             )
             yield entry
 
-    def parse(self, response: scrapy.responsetypes.Response) -> None:
+    def parse(self, response: scrapy.http.Response) -> None:
         pass  # TODO: Parse XML response
