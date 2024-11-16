@@ -52,6 +52,7 @@ pymdown-extensions = "*"
 pytest = "*"
 pytest-github-actions-annotate-failures = "*"
 pytest-cov = "*"
+python-dotenv = {version = "*", extras = ["cli"]}
 python-kacl = "*"
 ruff = ">=0.2.0"
 types-jmespath = "*"

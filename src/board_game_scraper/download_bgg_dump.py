@@ -11,7 +11,7 @@ from pathlib import Path
 import requests
 from scrapy.selector import Selector
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 LOGGER = logging.getLogger(__name__)
 
 

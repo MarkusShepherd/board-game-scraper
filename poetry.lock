@@ -1608,6 +1608,23 @@ files = [
 six = ">=1.5"
 
 [[package]]
+name = "python-dotenv"
+version = "1.0.1"
+description = "Read key-value pairs from a .env file and set them as environment variables"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "python-dotenv-1.0.1.tar.gz", hash = "sha256:e324ee90a023d808f1959c46bcbc04446a10ced277783dc6ee09987c37ec10ca"},
+    {file = "python_dotenv-1.0.1-py3-none-any.whl", hash = "sha256:f7b63ef50f1b690dddf550d03497b66d609393b40b564ed0d674909a68ebf16a"},
+]
+
+[package.dependencies]
+click = {version = ">=5.0", optional = true, markers = "extra == \"cli\""}
+
+[package.extras]
+cli = ["click (>=5.0)"]
+
+[[package]]
 name = "python-kacl"
 version = "0.6.2"
 description = "Python module and CLI tool for validating and modifying Changelogs in \"keep-a-changelog\" format\""
@@ -2298,4 +2315,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9.0, <4.0"
-content-hash = "65101d9c1e7f26ab777ef589417bf5d018e9169fb8ef9a8c7ddd720ff6304107"
+content-hash = "76f78f3478b5cad8c819917a9255348d2fa47fedad10a1c931ac507ca3615eb9"
