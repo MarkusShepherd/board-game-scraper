@@ -41,7 +41,7 @@ parsel = ">=1.8.1, <2.0"
 pyyaml = "*"
 requests = "*"
 scrapy = ">=2.11.0, <3.0"
-scrapy-extensions = {version = ">=1.0.0", extras = ["blurhash"]}
+scrapy-extensions = {version = ">=1.0.1", extras = ["blurhash"]}
 w3lib = ">=2.0.0, <3.0"
 
 [tool.poetry.group.dev.dependencies]
