@@ -2065,45 +2065,44 @@ files = [
 
 [[package]]
 name = "scrapy"
-version = "2.11.2"
+version = "2.12.0"
 description = "A high-level Web Crawling and Web Scraping framework"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 files = [
-    {file = "Scrapy-2.11.2-py2.py3-none-any.whl", hash = "sha256:4be353d6abbb942a9f7e7614ca8b5f3d9037381176ac8d8859c8cac676e74fa0"},
-    {file = "scrapy-2.11.2.tar.gz", hash = "sha256:dfbd565384fc3fffeba121f5a3a2d0899ac1f756d41432ca0879933fbfb3401d"},
+    {file = "Scrapy-2.12.0-py2.py3-none-any.whl", hash = "sha256:c33e2dc7da42e727390bacb32dd9938a54ac210fa71972b5c392754f478669cd"},
+    {file = "scrapy-2.12.0.tar.gz", hash = "sha256:d66d6e76009b12447604196875a463b61d10721140032a8084a0a52df7f4788f"},
 ]
 
 [package.dependencies]
-cryptography = ">=36.0.0"
+cryptography = ">=37.0.0"
 cssselect = ">=0.9.1"
 defusedxml = ">=0.7.1"
 itemadapter = ">=0.1.0"
 itemloaders = ">=1.0.1"
-lxml = ">=4.4.1"
+lxml = ">=4.6.0"
 packaging = "*"
 parsel = ">=1.5.0"
 protego = ">=0.1.15"
 PyDispatcher = {version = ">=2.0.5", markers = "platform_python_implementation == \"CPython\""}
-pyOpenSSL = ">=21.0.0"
+pyOpenSSL = ">=22.0.0"
 PyPyDispatcher = {version = ">=2.1.0", markers = "platform_python_implementation == \"PyPy\""}
 queuelib = ">=1.4.2"
 service-identity = ">=18.1.0"
-setuptools = "*"
 tldextract = "*"
-Twisted = ">=18.9.0"
+Twisted = ">=21.7.0"
 w3lib = ">=1.17.0"
 "zope.interface" = ">=5.1.0"
 
 [[package]]
 name = "scrapy-extensions"
-version = "1.0.1"
+version = "1.0.2"
 description = "A collection of Scrapy extensions and other utilities"
 optional = false
 python-versions = "<4.0,>=3.9.0"
 files = [
-    {file = "scrapy_extensions-1.0.1-py3-none-any.whl", hash = "sha256:fbc7efc71d1c33f504538c97f7585fdb6966bdaa8e995392b4f46f8d017d5fa8"},
-    {file = "scrapy_extensions-1.0.1.tar.gz", hash = "sha256:219415b5d92a35820c5e1c0efece70e851c1ffdcd27403d59951fd8fbb6e9d6f"},
+    {file = "scrapy_extensions-1.0.2-py3-none-any.whl", hash = "sha256:bdd2d931e67af8ceb9bf71c5d1230ad93b7587ec0d0ebd3794f392c4cd5e72a1"},
+    {file = "scrapy_extensions-1.0.2.tar.gz", hash = "sha256:1a29d9d250dc5a6a89f1cb64e7b795766e69c9400da22c6aef9c6ba2da282e64"},
 ]
 
 [package.dependencies]
@@ -2476,4 +2475,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9.0, <4.0"
-content-hash = "2896b665abde798096bd58c11c3690bc849f0ba4427c53019ef2ec88e301abca"
+content-hash = "d8d446f827791dd63486453b6599840bb706dfc3886e26a6a64c0b9209df1fa8"
