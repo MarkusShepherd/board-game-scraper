@@ -1,9 +1,17 @@
-import re
-from collections.abc import Generator, Iterable
-from typing import Any
+from __future__ import annotations
 
-from scrapy.http import Response
+import re
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Any
+
 from scrapy.spiders import SitemapSpider
+
+from board_game_scraper.items import CollectionItem, GameItem
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Iterable
+
+    from scrapy.http import Response
 
 
 class BggSpider(SitemapSpider):
@@ -44,5 +52,31 @@ class BggSpider(SitemapSpider):
             )
             yield entry
 
-    def parse(self, response: Response) -> None:
-        pass  # TODO: Parse XML response
+    def parse(
+        self,
+        response: Response,
+    ) -> Generator[GameItem | CollectionItem, None, None]:
+        for game in response.xpath("/items/item"):
+            bgg_item_type = game.xpath("@type").get()
+            if bgg_item_type != "boardgame":
+                self.logger.info("Skipping item type <%s>", bgg_item_type)
+                continue
+
+            yield GameItem(
+                name=game.xpath("name[@type='primary']/@value").get(),
+                bgg_id=game.xpath("@id").get(),
+                year=game.xpath("yearpublished/@value").get(),
+                description=game.xpath("description/text()").get(),
+                image_url=game.xpath("image/text()").getall(),  # TODO: <thumbnail>
+                scraped_at=datetime.now(timezone.utc),
+            )
+
+            for comment in game.xpath("comments/comment"):
+                yield CollectionItem(
+                    item_id=f"{comment.xpath("@username").get()}:{game.xpath("@id").get()}",
+                    bgg_id=game.xpath("@id").get(),
+                    bgg_user_name=comment.xpath("@username").get(),
+                    bgg_user_rating=comment.xpath("@rating").get(),
+                    comment=comment.xpath("@value").get(),
+                    scraped_at=datetime.now(timezone.utc),
+                )

@@ -81,6 +81,7 @@ venv.bak/
 # Project specific
 .scrapy/
 feeds/
+feeds_v3/
 images/
 jobs/
 logs/
