@@ -42,9 +42,6 @@ DEFAULT_REQUEST_HEADERS = {
     "Accept-Language": "en",
 }
 
-# See https://docs.scrapy.org/en/2.11/topics/asyncio.html#installing-the-asyncio-reactor
-TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
-
 # Enable or disable spider middlewares
 # See https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 SPIDER_MIDDLEWARES = {
