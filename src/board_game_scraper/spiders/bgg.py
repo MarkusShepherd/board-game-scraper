@@ -1,13 +1,12 @@
 import re
-from collections.abc import Generator, Iterator
+from collections.abc import Generator, Iterable
 from typing import Any
 
-import scrapy
-import scrapy.http
-import scrapy.spiders
+from scrapy.http import Response
+from scrapy.spiders import SitemapSpider
 
 
-class BggSpider(scrapy.spiders.SitemapSpider):
+class BggSpider(SitemapSpider):
     name = "bgg"
     allowed_domains = ("boardgamegeek.com",)
 
@@ -16,7 +15,7 @@ class BggSpider(scrapy.spiders.SitemapSpider):
     sitemap_rules = ((r"/xmlapi2/", "parse"),)
     sitemap_alternate_links = True
 
-    def _get_sitemap_body(self, response: scrapy.http.Response) -> bytes:
+    def _get_sitemap_body(self, response: Response) -> bytes:
         sitemap_body = super()._get_sitemap_body(response)
         if sitemap_body is not None:
             assert isinstance(sitemap_body, bytes)
@@ -27,7 +26,7 @@ class BggSpider(scrapy.spiders.SitemapSpider):
 
     def sitemap_filter(
         self,
-        entries: Iterator[dict[str, Any]],
+        entries: Iterable[dict[str, Any]],
     ) -> Generator[dict[str, Any], None, None]:
         for entry in entries:
             loc = entry.get("loc")
@@ -45,5 +44,5 @@ class BggSpider(scrapy.spiders.SitemapSpider):
             )
             yield entry
 
-    def parse(self, response: scrapy.http.Response) -> None:
+    def parse(self, response: Response) -> None:
         pass  # TODO: Parse XML response

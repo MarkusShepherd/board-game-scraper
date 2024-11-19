@@ -49,7 +49,9 @@ def download_bgg_dump(
 
         for link in selector.css("#maincontent a[download]"):
             download_url = link.xpath("@href").get()
+            assert isinstance(download_url, str)
             file_name = link.xpath("@download").get()
+            assert isinstance(file_name, str)
             file_path = target_dir / file_name
 
             LOGGER.info("Downloading <%s> to <%s>", download_url, file_path)
