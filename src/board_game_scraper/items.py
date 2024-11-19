@@ -99,3 +99,27 @@ class UserItem:
     published_at: datetime | None = None
     updated_at: datetime | None = None
     scraped_at: datetime  # TODO: Default to datetime.now()
+
+
+@define(kw_only=True)
+class CollectionItem:
+    item_id: str | int
+    bgg_id: int
+    bgg_user_name: str  # TODO: Convert to lowercase
+
+    bgg_user_rating: float | None = None
+    bgg_user_owned: bool | None = None
+    bgg_user_prev_owned: bool | None = None
+    bgg_user_for_trade: bool | None = None
+    bgg_user_want_in_trade: bool | None = None
+    bgg_user_want_to_play: bool | None = None
+    bgg_user_want_to_buy: bool | None = None
+    bgg_user_preordered: bool | None = None
+    bgg_user_wishlist: int | None = None
+    bgg_user_play_count: int | None = None
+
+    comment: str | None = None
+
+    published_at: datetime | None = None
+    updated_at: datetime | None = None
+    scraped_at: datetime  # TODO: Default to datetime.now()
