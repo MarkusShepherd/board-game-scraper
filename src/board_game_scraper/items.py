@@ -75,3 +75,27 @@ class GameItem:
     published_at: datetime | None = None
     updated_at: datetime | None = None
     scraped_at: datetime  # TODO: Default to datetime.now()
+
+
+@define(kw_only=True)
+class UserItem:
+    item_id: int | None = None
+    bgg_user_name: str  # TODO: Convert to lowercase
+    first_name: str | None = None
+    last_name: str | None = None
+
+    registered: int | None = None
+    last_login: datetime | None = None
+
+    country: str | None = None
+    region: str | None = None
+    city: str | None = None
+
+    external_link: list[str] | None = None
+    image_url: list[str] | None = None
+    image_file: list[dict[str, str]] | None = None
+    image_blurhash: list[dict[str, str]] | None = None
+
+    published_at: datetime | None = None
+    updated_at: datetime | None = None
+    scraped_at: datetime  # TODO: Default to datetime.now()
