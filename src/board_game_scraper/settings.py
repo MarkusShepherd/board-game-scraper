@@ -12,6 +12,27 @@ LOG_SCRAPED_ITEMS = os.getenv("LOG_SCRAPED_ITEMS")
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+FEEDS = {
+    BASE_DIR / "feeds_v3" / "GameItem" / "%(time)s.jl": {
+        "item_classes": ["board_game_scraper.items.GameItem"],
+        "format": "jsonlines",
+        "overwrite": False,
+        "store_empty": False,
+    },
+    BASE_DIR / "feeds_v3" / "UserItem" / "%(time)s.jl": {
+        "item_classes": ["board_game_scraper.items.UserItem"],
+        "format": "jsonlines",
+        "overwrite": False,
+        "store_empty": False,
+    },
+    BASE_DIR / "feeds_v3" / "CollectionItem" / "%(time)s.jl": {
+        "item_classes": ["board_game_scraper.items.CollectionItem"],
+        "format": "jsonlines",
+        "overwrite": False,
+        "store_empty": False,
+    },
+}
+
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 USER_AGENT = "board-game-scraper (+https://recommend.games)"
 
