@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
+from scrapy.loader import ItemLoader
 from scrapy.spiders import SitemapSpider
 
 from board_game_scraper.items import CollectionItem, GameItem
@@ -62,21 +62,34 @@ class BggSpider(SitemapSpider):
                 self.logger.info("Skipping item type <%s>", bgg_item_type)
                 continue
 
-            yield GameItem(
-                name=game.xpath("name[@type='primary']/@value").get(),
-                bgg_id=game.xpath("@id").get(),
-                year=game.xpath("yearpublished/@value").get(),
-                description=game.xpath("description/text()").get(),
-                image_url=game.xpath("image/text()").getall(),  # TODO: <thumbnail>
-                scraped_at=datetime.now(timezone.utc),
+            name = game.xpath("name[@type='primary']/@value").get()
+            bgg_id = int(game.xpath("@id").get())  # TODO: Safe parsing
+            ldr = ItemLoader(
+                item=GameItem(name=name, bgg_id=bgg_id),
+                selector=game,
             )
 
+            ldr.add_xpath("bgg_id", "@id")
+            ldr.add_xpath("year", "yearpublished/@value")
+            ldr.add_xpath("description", "description/text()")
+            ldr.add_xpath("image_url", "image/text()")
+            ldr.add_xpath("image_url", "thumbnail/text()")
+
+            yield ldr.load_item()
+
             for comment in game.xpath("comments/comment"):
-                yield CollectionItem(
-                    item_id=f"{comment.xpath("@username").get()}:{game.xpath("@id").get()}",
-                    bgg_id=game.xpath("@id").get(),
-                    bgg_user_name=comment.xpath("@username").get(),
-                    bgg_user_rating=comment.xpath("@rating").get(),
-                    comment=comment.xpath("@value").get(),
-                    scraped_at=datetime.now(timezone.utc),
+                user_name = comment.xpath("@username").get()
+                item_id = f"{user_name}:{bgg_id}"
+                ldr = ItemLoader(
+                    item=CollectionItem(
+                        item_id=item_id,
+                        bgg_id=bgg_id,
+                        bgg_user_name=user_name,
+                    ),
+                    selector=comment,
                 )
+
+                ldr.add_xpath("bgg_user_rating", "@rating")
+                ldr.add_xpath("comment", "@value")
+
+                yield ldr.load_item()
