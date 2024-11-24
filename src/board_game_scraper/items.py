@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 from attrs import converters, define, field
 
+from board_game_scraper.utils.dates import now
 from board_game_scraper.utils.parsers import parse_int
 
-
-def _now(tz: timezone = timezone.utc) -> datetime:
-    return datetime.now(tz)
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 @define(kw_only=True)
@@ -77,7 +77,7 @@ class GameItem:
 
     published_at: datetime | None = None
     updated_at: datetime | None = None
-    scraped_at: datetime = field(factory=_now)
+    scraped_at: datetime = field(factory=now)
 
 
 @define(kw_only=True)
@@ -101,7 +101,7 @@ class UserItem:
 
     published_at: datetime | None = None
     updated_at: datetime | None = None
-    scraped_at: datetime = field(factory=_now)
+    scraped_at: datetime = field(factory=now)
 
 
 @define(kw_only=True)
@@ -155,4 +155,4 @@ class CollectionItem:
 
     published_at: datetime | None = None
     updated_at: datetime | None = None
-    scraped_at: datetime = field(factory=_now)
+    scraped_at: datetime = field(factory=now)
