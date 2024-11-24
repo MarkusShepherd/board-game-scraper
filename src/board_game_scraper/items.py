@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from attrs import define, field
+from attrs import converters, define, field
+
+from board_game_scraper.utils.parsers import parse_int
 
 
 def _now(tz: timezone = timezone.utc) -> datetime:
@@ -13,7 +15,7 @@ def _now(tz: timezone = timezone.utc) -> datetime:
 class GameItem:
     name: str
     alt_name: list[str] | None = None
-    year: int | None = None
+    year: int | None = field(converter=parse_int, default=None)
     game_type: list[str] | None = None
     description: str | None = None
 
@@ -33,18 +35,18 @@ class GameItem:
     external_link: list[str] | None = None
     list_price: str | None = None
 
-    min_players: int | None = None
-    max_players: int | None = None
-    min_players_rec: int | None = None
-    max_players_rec: int | None = None
-    min_players_best: int | None = None
-    max_players_best: int | None = None
-    min_age: int | None = None
-    max_age: int | None = None
+    min_players: int | None = field(converter=parse_int, default=None)
+    max_players: int | None = field(converter=parse_int, default=None)
+    min_players_rec: int | None = field(converter=parse_int, default=None)
+    max_players_rec: int | None = field(converter=parse_int, default=None)
+    min_players_best: int | None = field(converter=parse_int, default=None)
+    max_players_best: int | None = field(converter=parse_int, default=None)
+    min_age: int | None = field(converter=parse_int, default=None)
+    max_age: int | None = field(converter=parse_int, default=None)
     min_age_rec: float | None = None
     max_age_rec: float | None = None
-    min_time: int | None = None
-    max_time: int | None = None
+    min_time: int | None = field(converter=parse_int, default=None)
+    max_time: int | None = field(converter=parse_int, default=None)
 
     category: list[str] | None = None
     mechanic: list[str] | None = None
@@ -56,21 +58,21 @@ class GameItem:
     implementation: list[int] | None = None
     integration: list[int] | None = None
 
-    rank: int | None = None
+    rank: int | None = field(converter=parse_int, default=None)
     add_rank: list[dict[str, int]] | None = None
-    num_votes: int | None = None
+    num_votes: int | None = field(converter=parse_int, default=None)
     avg_rating: float | None = None
     stddev_rating: float | None = None
     bayes_rating: float | None = None
     complexity: float | None = None
     language_dependency: float | None = None
 
-    bgg_id: int | None = None
+    bgg_id: int | None = field(converter=parse_int, default=None)
     freebase_id: str | None = None
     wikidata_id: str | None = None
     wikipedia_id: str | None = None
     dbpedia_id: str | None = None
-    luding_id: int | None = None
+    luding_id: int | None = field(converter=parse_int, default=None)
     spielen_id: str | None = None
 
     published_at: datetime | None = None
@@ -81,11 +83,11 @@ class GameItem:
 @define(kw_only=True)
 class UserItem:
     item_id: int | None = None
-    bgg_user_name: str  # TODO: Convert to lowercase
+    bgg_user_name: str = field(converter=str.lower)  # type: ignore[misc]
     first_name: str | None = None
     last_name: str | None = None
 
-    registered: int | None = None
+    registered: int | None = field(converter=parse_int, default=None)
     last_login: datetime | None = None
 
     country: str | None = None
@@ -105,19 +107,49 @@ class UserItem:
 @define(kw_only=True)
 class CollectionItem:
     item_id: str | int
-    bgg_id: int
-    bgg_user_name: str  # TODO: Convert to lowercase
+    bgg_id: int = field(converter=int)
+    bgg_user_name: str = field(converter=str.lower)  # type: ignore[misc]
 
-    bgg_user_rating: float | None = None
-    bgg_user_owned: bool | None = None
-    bgg_user_prev_owned: bool | None = None
-    bgg_user_for_trade: bool | None = None
-    bgg_user_want_in_trade: bool | None = None
-    bgg_user_want_to_play: bool | None = None
-    bgg_user_want_to_buy: bool | None = None
-    bgg_user_preordered: bool | None = None
-    bgg_user_wishlist: int | None = None
-    bgg_user_play_count: int | None = None
+    bgg_user_rating: float | None = field(
+        converter=float,
+        default=None,
+    )
+    bgg_user_owned: bool | None = field(
+        converter=converters.to_bool,
+        default=None,
+    )
+    bgg_user_prev_owned: bool | None = field(
+        converter=converters.to_bool,
+        default=None,
+    )
+    bgg_user_for_trade: bool | None = field(
+        converter=converters.to_bool,
+        default=None,
+    )
+    bgg_user_want_in_trade: bool | None = field(
+        converter=converters.to_bool,
+        default=None,
+    )
+    bgg_user_want_to_play: bool | None = field(
+        converter=converters.to_bool,
+        default=None,
+    )
+    bgg_user_want_to_buy: bool | None = field(
+        converter=converters.to_bool,
+        default=None,
+    )
+    bgg_user_preordered: bool | None = field(
+        converter=converters.to_bool,
+        default=None,
+    )
+    bgg_user_wishlist: int | None = field(
+        converter=parse_int,
+        default=None,
+    )
+    bgg_user_play_count: int | None = field(
+        converter=parse_int,
+        default=None,
+    )
 
     comment: str | None = None
 
