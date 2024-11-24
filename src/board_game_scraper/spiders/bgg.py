@@ -3,10 +3,11 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, Any
 
-from scrapy.loader import ItemLoader
+from scrapy import Selector
 from scrapy.spiders import SitemapSpider
 
 from board_game_scraper.items import CollectionItem, GameItem
+from board_game_scraper.loaders import CollectionLoader, GameLoader
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
@@ -57,39 +58,44 @@ class BggSpider(SitemapSpider):
         response: Response,
     ) -> Generator[GameItem | CollectionItem, None, None]:
         for game in response.xpath("/items/item"):
+            assert isinstance(game, Selector)
             bgg_item_type = game.xpath("@type").get()
             if bgg_item_type != "boardgame":
                 self.logger.info("Skipping item type <%s>", bgg_item_type)
                 continue
 
-            name = game.xpath("name[@type='primary']/@value").get()
-            bgg_id = int(game.xpath("@id").get())  # TODO: Safe parsing
-            ldr = ItemLoader(
-                item=GameItem(name=name, bgg_id=bgg_id),
+            # name = game.xpath("name[@type='primary']/@value").get()
+            # bgg_id = int(game.xpath("@id").get())  # TODO: Safe parsing
+            gldr = GameLoader(
+                # item=GameItem(name=name, bgg_id=bgg_id),
                 selector=game,
             )
 
-            ldr.add_xpath("bgg_id", "@id")
-            ldr.add_xpath("year", "yearpublished/@value")
-            ldr.add_xpath("description", "description/text()")
-            ldr.add_xpath("image_url", "image/text()")
-            ldr.add_xpath("image_url", "thumbnail/text()")
+            gldr.add_xpath("name", "name[@type='primary']/@value")
+            gldr.add_xpath("bgg_id", "@id")
+            gldr.add_xpath("year", "yearpublished/@value")
+            gldr.add_xpath("description", "description/text()")
+            gldr.add_xpath("image_url", "image/text()")
+            gldr.add_xpath("image_url", "thumbnail/text()")
 
-            yield ldr.load_item()
+            game_item = gldr.load_item()
+            assert isinstance(game_item, GameItem)
+            assert isinstance(game_item.bgg_id, int)
+            yield game_item
 
             for comment in game.xpath("comments/comment"):
                 user_name = comment.xpath("@username").get()
-                item_id = f"{user_name}:{bgg_id}"
-                ldr = ItemLoader(
+                item_id = f"{user_name}:{game_item.bgg_id}"
+                cldr = CollectionLoader(
                     item=CollectionItem(
                         item_id=item_id,
-                        bgg_id=bgg_id,
+                        bgg_id=game_item.bgg_id,
                         bgg_user_name=user_name,
                     ),
                     selector=comment,
                 )
 
-                ldr.add_xpath("bgg_user_rating", "@rating")
-                ldr.add_xpath("comment", "@value")
+                cldr.add_xpath("bgg_user_rating", "@rating")
+                cldr.add_xpath("comment", "@value")
 
-                yield ldr.load_item()
+                yield cldr.load_item()
