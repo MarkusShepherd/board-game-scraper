@@ -1,9 +1,13 @@
+from functools import partial
+
 from itemloaders.processors import Identity, MapCompose, TakeFirst
 from scrapy.loader import ItemLoader
 
 from board_game_scraper.items import CollectionItem, GameItem
 from board_game_scraper.utils.parsers import parse_float, parse_int
 from board_game_scraper.utils.strings import normalize_space
+
+normalize_space_with_newline = partial(normalize_space, preserve_newline=True)
 
 
 class GameLoader(ItemLoader):
@@ -14,7 +18,7 @@ class GameLoader(ItemLoader):
     alt_name_out = Identity()
     year_in = MapCompose(parse_int)
     game_type_out = Identity()
-    description_in = MapCompose(normalize_space)
+    description_in = MapCompose(normalize_space_with_newline)
 
     bgg_id_in = MapCompose(parse_int)
 
@@ -30,4 +34,4 @@ class CollectionLoader(ItemLoader):
     bgg_user_wishlist_in = MapCompose(parse_int)
     bgg_user_play_count_in = MapCompose(parse_int)
 
-    comment_in = MapCompose(normalize_space)
+    comment_in = MapCompose(normalize_space_with_newline)

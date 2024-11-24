@@ -118,6 +118,7 @@ class UserItem:
 
 @define(kw_only=True)
 class CollectionItem:
+    # TODO: Default to item_id = f"{bgg_user_name}:{bgg_id}"
     item_id: str | int | None = field(
         default=None,
         metadata={"required": True},
