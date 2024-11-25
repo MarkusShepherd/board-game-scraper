@@ -8,13 +8,13 @@
         <array>
             <string>/Users/markus/Recommend.Games/board-game-scraper/curl_hotness.sh</string>
         </array>
-        <key>RunAtLoad</key>
-        <true/>
-        <key>StartInterval</key>
-        <integer>7200</integer>
         <key>StandardOutPath</key>
         <string>/Users/markus/Recommend.Games/board-game-scraper/logs/games.recommend.curl_hotness.log</string>
         <key>StandardErrorPath</key>
         <string>/Users/markus/Recommend.Games/board-game-scraper/logs/games.recommend.curl_hotness.log</string>
+        <key>RunAtLoad</key>
+        <true/>
+        <key>StartInterval</key>
+        <integer>7200</integer>
     </dict>
 </plist>

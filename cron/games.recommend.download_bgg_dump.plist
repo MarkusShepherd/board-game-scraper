@@ -18,14 +18,14 @@
             <string>-m</string>
             <string>board_game_scraper.download_bgg_dump</string>
         </array>
+        <key>StandardOutPath</key>
+        <string>/Users/markus/Recommend.Games/board-game-scraper/logs/games.recommend.download_bgg_dump.log</string>
+        <key>StandardErrorPath</key>
+        <string>/Users/markus/Recommend.Games/board-game-scraper/logs/games.recommend.download_bgg_dump.log</string>
         <key>RunAtLoad</key>
         <true/>
         <key>StartInterval</key>
         <!-- Every 6 hours -->
         <integer>14400</integer>
-        <key>StandardOutPath</key>
-        <string>/Users/markus/Recommend.Games/board-game-scraper/logs/games.recommend.download_bgg_dump.log</string>
-        <key>StandardErrorPath</key>
-        <string>/Users/markus/Recommend.Games/board-game-scraper/logs/games.recommend.download_bgg_dump.log</string>
     </dict>
 </plist>
