@@ -2,6 +2,7 @@ from functools import partial
 
 from itemloaders.processors import Identity, MapCompose, TakeFirst
 from scrapy.loader import ItemLoader
+from w3lib.html import replace_entities
 
 from board_game_scraper.items import CollectionItem, GameItem
 from board_game_scraper.utils.parsers import parse_float, parse_int
@@ -21,6 +22,10 @@ class GameLoader(ItemLoader):
     description_in = MapCompose(normalize_space_with_newline)
 
     bgg_id_in = MapCompose(parse_int)
+
+
+class BggGameLoader(GameLoader):
+    description_in = MapCompose(replace_entities, normalize_space_with_newline)
 
 
 class CollectionLoader(ItemLoader):

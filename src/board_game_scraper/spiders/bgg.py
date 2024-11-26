@@ -3,16 +3,28 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, Any
 
-from scrapy import Selector
+from scrapy.selector.unified import Selector, SelectorList
 from scrapy.spiders import SitemapSpider
+from scrapy.utils.misc import arg_to_iter
 
 from board_game_scraper.items import CollectionItem, GameItem
-from board_game_scraper.loaders import CollectionLoader, GameLoader
+from board_game_scraper.loaders import BggGameLoader, CollectionLoader
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
 
     from scrapy.http import Response
+
+
+def _value_id(
+    items: Selector | SelectorList | Iterable[Selector],
+    sep: str = ":",
+) -> Generator[str, None, None]:
+    for item in arg_to_iter(items):
+        assert isinstance(item, Selector)
+        value = item.xpath("@value").get() or ""
+        id_ = item.xpath("@id").get() or ""
+        yield f"{value}{sep}{id_}" if id_ else value
 
 
 class BggSpider(SitemapSpider):
@@ -64,17 +76,27 @@ class BggSpider(SitemapSpider):
                 self.logger.info("Skipping item type <%s>", bgg_item_type)
                 continue
 
-            # name = game.xpath("name[@type='primary']/@value").get()
-            # bgg_id = int(game.xpath("@id").get())  # TODO: Safe parsing
-            gldr = GameLoader(
-                # item=GameItem(name=name, bgg_id=bgg_id),
-                selector=game,
-            )
+            gldr = BggGameLoader(selector=game)
 
-            gldr.add_xpath("name", "name[@type='primary']/@value")
             gldr.add_xpath("bgg_id", "@id")
+            gldr.add_xpath("name", "name[@type = 'primary']/@value")
+            gldr.add_xpath("alt_name", "name/@value")
             gldr.add_xpath("year", "yearpublished/@value")
             gldr.add_xpath("description", "description/text()")
+
+            gldr.add_value(
+                "designer",
+                _value_id(game.xpath("link[@type = 'boardgamedesigner']")),
+            )
+            gldr.add_value(
+                "artist",
+                _value_id(game.xpath("link[@type = 'boardgameartist']")),
+            )
+            gldr.add_value(
+                "publisher",
+                _value_id(game.xpath("link[@type = 'boardgamepublisher']")),
+            )
+
             gldr.add_xpath("image_url", "image/text()")
             gldr.add_xpath("image_url", "thumbnail/text()")
 
