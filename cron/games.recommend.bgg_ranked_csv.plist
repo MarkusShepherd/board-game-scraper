@@ -13,7 +13,7 @@
         <key>StandardErrorPath</key>
         <string>/Users/markus/Recommend.Games/board-game-scraper/logs/games.recommend.bgg_ranked_csv.log</string>
         <key>RunAtLoad</key>
-        <true/>
+        <false/>
         <key>StartCalendarInterval</key>
         <dict>
             <key>Hour</key>

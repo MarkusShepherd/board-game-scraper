@@ -15,6 +15,7 @@
         <key>RunAtLoad</key>
         <true/>
         <key>StartInterval</key>
+        <!-- Every 2 hours -->
         <integer>7200</integer>
     </dict>
 </plist>
