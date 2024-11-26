@@ -12,6 +12,7 @@ from scrapy.utils.misc import arg_to_iter
 
 from board_game_scraper.items import CollectionItem, GameItem
 from board_game_scraper.loaders import BggGameLoader, CollectionLoader
+from board_game_scraper.utils.parsers import parse_float, parse_int
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
@@ -30,8 +31,12 @@ def _value_id(
         yield f"{value}{sep}{id_}" if id_ else value
 
 
-def _remove_rank(value: str) -> str:
-    return value[:-5] if value.lower().endswith(" rank") else value
+def _remove_rank(value: str | None) -> str | None:
+    return (
+        value[:-5]
+        if isinstance(value, str) and value.lower().endswith(" rank")
+        else value
+    )
 
 
 def _value_id_rank(
@@ -40,8 +45,7 @@ def _value_id_rank(
 ) -> Generator[str, None, None]:
     for item in arg_to_iter(items):
         assert isinstance(item, Selector)
-        value = item.xpath("@friendlyname").get() or ""
-        value = _remove_rank(value)
+        value = _remove_rank(item.xpath("@friendlyname").get()) or ""
         id_ = item.xpath("@id").get() or ""
         yield f"{value}{sep}{id_}" if id_ else value
 
@@ -80,16 +84,16 @@ class BggSpider(SitemapSpider):
                 continue
 
             entry["loc"] = (
-                f"https://boardgamegeek.com/xmlapi2/thing?id={bgg_id.group(1)}&type=boardgame&versions=1&videos=1&stats=1&comments=1&ratingcomments=1&pagesize=100&page=1"
+                f"https://boardgamegeek.com/xmlapi2/thing?id={bgg_id.group(1)}&type=boardgame&videos=1&stats=1&comments=1&ratingcomments=1&pagesize=100&page=1"
             )
             yield entry
 
-    def parse(
+    def parse(  # noqa: PLR0915
         self,
         response: Response,
     ) -> Generator[GameItem | CollectionItem, None, None]:
         """
-        @url https://www.boardgamegeek.com/xmlapi2/thing?id=13,822,36218&type=boardgame&versions=1&videos=1&stats=1&comments=1&ratingcomments=1&pagesize=100&page=1
+        @url https://boardgamegeek.com/xmlapi2/thing?id=13,822,36218&type=boardgame&videos=1&stats=1&comments=1&ratingcomments=1&pagesize=100&page=1
         @returns items 303 303
         @returns requests 0 0
         @scrapes name alt_name year description \
@@ -134,7 +138,9 @@ class BggSpider(SitemapSpider):
                 _value_id(game.xpath("link[@type = 'boardgamepublisher']")),
             )
 
-            # TODO: url
+            # TODO: Full URL from sitemap
+            bgg_id = gldr.get_output_value("bgg_id")
+            gldr.add_value("url", f"https://boardgamegeek.com/boardgame/{bgg_id}")
             gldr.add_xpath("image_url", ("image/text()", "thumbnail/text()"))
             gldr.add_xpath("video_url", "videos/video/@link")
 
@@ -203,6 +209,35 @@ class BggSpider(SitemapSpider):
                 "integration",
                 "link[@type = 'boardgameintegration']/@id",
             )
+
+            gldr.add_xpath(
+                "rank",
+                "statistics/ratings/ranks/rank[@name = 'boardgame']/@value",
+            )
+            gldr.add_xpath("num_votes", "statistics/ratings/usersrated/@value")
+            gldr.add_xpath("avg_rating", "statistics/ratings/average/@value")
+            gldr.add_xpath("stddev_rating", "statistics/ratings/stddev/@value")
+            gldr.add_xpath("bayes_rating", "statistics/ratings/bayesaverage/@value")
+            gldr.add_xpath("complexity", "statistics/ratings/averageweight/@value")
+            # TODO: language_dependency
+            # TODO:
+            # <owned value="8241" />
+            # <trading value="276" />
+            # <wanting value="494" />
+            # <wishing value="2171" />
+            # <numcomments value="2133" />
+            # <numweights value="790" />
+
+            for rank in game.xpath('statistics/ratings/ranks/rank[@type = "family"]'):
+                # TODO: This should be its own item type
+                add_rank = {
+                    "game_type": rank.xpath("@name").get(),
+                    "game_type_id": parse_int(rank.xpath("@id").get()),
+                    "name": _remove_rank(rank.xpath("@friendlyname").get()),
+                    "rank": parse_int(rank.xpath("@value").get()),
+                    "bayes_rating": parse_float(rank.xpath("@bayesaverage").get()),
+                }
+                gldr.add_value("add_rank", add_rank)
 
             game_item = gldr.load_item()
             assert isinstance(game_item, GameItem)
