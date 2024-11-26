@@ -5,7 +5,7 @@ from scrapy.loader import ItemLoader
 from w3lib.html import replace_entities
 
 from board_game_scraper.items import CollectionItem, GameItem
-from board_game_scraper.utils.parsers import parse_float, parse_int
+from board_game_scraper.utils.parsers import parse_date, parse_float, parse_int
 from board_game_scraper.utils.strings import normalize_space
 
 normalize_space_with_newline = partial(normalize_space, preserve_newline=True)
@@ -21,7 +21,57 @@ class GameLoader(ItemLoader):
     game_type_out = Identity()
     description_in = MapCompose(normalize_space_with_newline)
 
+    designer_out = Identity()
+    artist_out = Identity()
+    publisher_out = Identity()
+
+    official_url_out = Identity()
+    image_url_out = Identity()
+    video_url_out = Identity()
+    rules_url_out = Identity()
+    review_url_out = Identity()
+    external_link_out = Identity()
+
+    min_players_in = MapCompose(parse_int)
+    max_players_in = MapCompose(parse_int)
+    min_players_rec_in = MapCompose(parse_int)
+    max_players_rec_in = MapCompose(parse_int)
+    min_players_best_in = MapCompose(parse_int)
+    max_players_best_in = MapCompose(parse_int)
+    min_age_in = MapCompose(parse_int)
+    max_age_in = MapCompose(parse_int)
+    min_age_rec_in = MapCompose(parse_float)
+    max_age_rec_in = MapCompose(parse_float)
+    min_time_in = MapCompose(parse_int)
+    max_time_in = MapCompose(parse_int)
+
+    category_out = Identity()
+    mechanic_out = Identity()
+    compilation_of_in = MapCompose(parse_int)
+    compilation_of_out = Identity()
+    family_out = Identity()
+    expansion_out = Identity()
+    implementation_in = MapCompose(parse_int)
+    implementation_out = Identity()
+    integration_in = MapCompose(parse_int)
+    integration_out = Identity()
+
+    rank_in = MapCompose(parse_int)
+    add_rank_out = Identity()
+    num_votes_in = MapCompose(parse_int)
+    avg_rating_in = MapCompose(parse_float)
+    stddev_rating_in = MapCompose(parse_float)
+    bayes_rating_in = MapCompose(parse_float)
+
+    complexity_in = MapCompose(parse_float)
+    language_dependency_in = MapCompose(parse_float)
+
     bgg_id_in = MapCompose(parse_int)
+    luding_id_in = MapCompose(parse_int)
+
+    published_at_in = MapCompose(parse_date)
+    updated_at_in = MapCompose(parse_date)
+    scraped_at_in = MapCompose(parse_date)
 
 
 class BggGameLoader(GameLoader):
