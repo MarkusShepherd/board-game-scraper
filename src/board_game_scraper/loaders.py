@@ -1,6 +1,10 @@
+from __future__ import annotations
+
 from functools import partial
+from typing import Any
 
 from itemloaders.processors import Identity, MapCompose, TakeFirst
+from scrapy.http import Response
 from scrapy.loader import ItemLoader
 from w3lib.html import replace_entities
 
@@ -9,6 +13,17 @@ from board_game_scraper.utils.parsers import parse_date, parse_float, parse_int
 from board_game_scraper.utils.strings import normalize_space
 
 normalize_space_with_newline = partial(normalize_space, preserve_newline=True)
+
+
+def response_urljoin(url: str, loader_context: dict[str, Any]) -> str | None:
+    if not url or not isinstance(url, str):
+        return None
+    assert isinstance(url, str)
+    response = loader_context.get("response")
+    if not response or not isinstance(response, Response):
+        return url
+    assert isinstance(response, Response)
+    return response.urljoin(url)
 
 
 class GameLoader(ItemLoader):
@@ -25,11 +40,18 @@ class GameLoader(ItemLoader):
     artist_out = Identity()
     publisher_out = Identity()
 
+    url_in = MapCompose(response_urljoin)
+    official_url_in = MapCompose(response_urljoin)
     official_url_out = Identity()
+    image_url_in = MapCompose(response_urljoin)
     image_url_out = Identity()
+    video_url_in = MapCompose(response_urljoin)
     video_url_out = Identity()
+    rules_url_in = MapCompose(response_urljoin)
     rules_url_out = Identity()
+    review_url_in = MapCompose(response_urljoin)
     review_url_out = Identity()
+    external_link_in = MapCompose(response_urljoin)
     external_link_out = Identity()
 
     min_players_in = MapCompose(parse_int)
@@ -88,7 +110,9 @@ class UserLoader(ItemLoader):
     registered_in = MapCompose(parse_int)
     last_login_in = MapCompose(parse_date)
 
+    external_link_in = MapCompose(response_urljoin)
     external_link_out = Identity()
+    image_url_in = MapCompose(response_urljoin)
     image_url_out = Identity()
 
     published_at_in = MapCompose(parse_date)
