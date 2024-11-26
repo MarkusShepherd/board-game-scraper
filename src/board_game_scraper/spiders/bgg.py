@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import pprint
 import re
 from typing import TYPE_CHECKING, Any
 
+from attrs import asdict
+from scrapy.http import TextResponse
 from scrapy.selector.unified import Selector, SelectorList
 from scrapy.spiders import SitemapSpider
 from scrapy.utils.misc import arg_to_iter
@@ -23,6 +26,22 @@ def _value_id(
     for item in arg_to_iter(items):
         assert isinstance(item, Selector)
         value = item.xpath("@value").get() or ""
+        id_ = item.xpath("@id").get() or ""
+        yield f"{value}{sep}{id_}" if id_ else value
+
+
+def _remove_rank(value: str) -> str:
+    return value[:-5] if value.lower().endswith(" rank") else value
+
+
+def _value_id_rank(
+    items: Selector | SelectorList | Iterable[Selector],
+    sep: str = ":",
+) -> Generator[str, None, None]:
+    for item in arg_to_iter(items):
+        assert isinstance(item, Selector)
+        value = item.xpath("@friendlyname").get() or ""
+        value = _remove_rank(value)
         id_ = item.xpath("@id").get() or ""
         yield f"{value}{sep}{id_}" if id_ else value
 
@@ -69,6 +88,24 @@ class BggSpider(SitemapSpider):
         self,
         response: Response,
     ) -> Generator[GameItem | CollectionItem, None, None]:
+        """
+        @url https://www.boardgamegeek.com/xmlapi2/thing?id=13,822,36218&type=boardgame&versions=1&videos=1&stats=1&comments=1&ratingcomments=1&pagesize=100&page=1
+        @returns items 303 303
+        @returns requests 0 0
+        @scrapes name alt_name year description \
+            designer artist publisher \
+            url image_url video_url \
+            min_players max_players min_players_rec max_players_rec \
+            min_players_best max_players_best \
+            min_age min_age_rec min_time max_time \
+            game_type category mechanic cooperative compilation family expansion \
+            rank add_rank num_votes avg_rating stddev_rating \
+            bayes_rating complexity language_dependency \
+            bgg_id scraped_at
+        """
+
+        assert isinstance(response, TextResponse)
+
         for game in response.xpath("/items/item"):
             assert isinstance(game, Selector)
             bgg_item_type = game.xpath("@type").get()
@@ -76,7 +113,7 @@ class BggSpider(SitemapSpider):
                 self.logger.info("Skipping item type <%s>", bgg_item_type)
                 continue
 
-            gldr = BggGameLoader(selector=game)
+            gldr = BggGameLoader(response=response, selector=game)
 
             gldr.add_xpath("bgg_id", "@id")
             gldr.add_xpath("name", "name[@type = 'primary']/@value")
@@ -97,12 +134,80 @@ class BggSpider(SitemapSpider):
                 _value_id(game.xpath("link[@type = 'boardgamepublisher']")),
             )
 
-            gldr.add_xpath("image_url", "image/text()")
-            gldr.add_xpath("image_url", "thumbnail/text()")
+            # TODO: url
+            gldr.add_xpath("image_url", ("image/text()", "thumbnail/text()"))
+            gldr.add_xpath("video_url", "videos/video/@link")
+
+            gldr.add_xpath("min_players", "minplayers/@value")
+            gldr.add_xpath("max_players", "maxplayers/@value")
+            # TODO: min_players_rec, max_players_rec, min_players_best, max_players_best
+
+            gldr.add_xpath("min_age", "minage/@value")
+            gldr.add_xpath("max_age", "maxage/@value")
+            # TODO: min_age_rec, max_age_rec
+
+            gldr.add_xpath(
+                "min_time",
+                ("minplaytime/@value", "playingtime/@value", "maxplaytime/@value"),
+            )
+            gldr.add_xpath(
+                "max_time",
+                ("maxplaytime/@value", "playingtime/@value", "minplaytime/@value"),
+            )
+
+            gldr.add_value(
+                "game_type",
+                _value_id_rank(
+                    game.xpath("statistics/ratings/ranks/rank[@type = 'family']"),
+                ),
+            )
+            gldr.add_value(
+                "category",
+                _value_id(game.xpath("link[@type = 'boardgamecategory']")),
+            )
+            gldr.add_value(
+                "mechanic",
+                _value_id(game.xpath("link[@type = 'boardgamemechanic']")),
+            )
+            # look for <link type="boardgamemechanic"
+            #              id="2023" value="Co-operative Play" />
+            gldr.add_value(
+                "cooperative",
+                bool(game.xpath("link[@type = 'boardgamemechanic' and @id = '2023']")),
+            )
+            gldr.add_value(
+                "compilation",
+                bool(
+                    game.xpath(
+                        "link[@type = 'boardgamecompilation' and @inbound = 'true']",
+                    ),
+                ),
+            )
+            gldr.add_xpath(
+                "compilation_of",
+                "link[@type = 'boardgamecompilation' and @inbound = 'true']/@id",
+            )
+            gldr.add_value(
+                "family",
+                _value_id(game.xpath("link[@type = 'boardgamefamily']")),
+            )
+            gldr.add_value(
+                "expansion",
+                _value_id(game.xpath("link[@type = 'boardgameexpansion']")),
+            )
+            gldr.add_xpath(
+                "implementation",
+                "link[@type = 'boardgameimplementation' and @inbound = 'true']/@id",
+            )
+            gldr.add_xpath(
+                "integration",
+                "link[@type = 'boardgameintegration']/@id",
+            )
 
             game_item = gldr.load_item()
             assert isinstance(game_item, GameItem)
             assert isinstance(game_item.bgg_id, int)
+            pprint.pp(asdict(game_item))
             yield game_item
 
             for comment in game.xpath("comments/comment"):
