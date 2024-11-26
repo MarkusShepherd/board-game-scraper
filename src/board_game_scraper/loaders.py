@@ -4,7 +4,7 @@ from itemloaders.processors import Identity, MapCompose, TakeFirst
 from scrapy.loader import ItemLoader
 from w3lib.html import replace_entities
 
-from board_game_scraper.items import CollectionItem, GameItem
+from board_game_scraper.items import CollectionItem, GameItem, UserItem
 from board_game_scraper.utils.parsers import parse_date, parse_float, parse_int
 from board_game_scraper.utils.strings import normalize_space
 
@@ -76,6 +76,24 @@ class GameLoader(ItemLoader):
 
 class BggGameLoader(GameLoader):
     description_in = MapCompose(replace_entities, normalize_space_with_newline)
+
+
+class UserLoader(ItemLoader):
+    default_item_class = UserItem
+    # default_input_processor = MapCompose(...)
+    default_output_processor = TakeFirst()
+
+    item_id_in = MapCompose(parse_int)
+
+    registered_in = MapCompose(parse_int)
+    last_login_in = MapCompose(parse_date)
+
+    external_link_out = Identity()
+    image_url_out = Identity()
+
+    published_at_in = MapCompose(parse_date)
+    updated_at_in = MapCompose(parse_date)
+    scraped_at_in = MapCompose(parse_date)
 
 
 class CollectionLoader(ItemLoader):
