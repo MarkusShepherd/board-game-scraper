@@ -108,3 +108,7 @@ class CollectionLoader(ItemLoader):
     bgg_user_play_count_in = MapCompose(parse_int)
 
     comment_in = MapCompose(normalize_space_with_newline)
+
+    published_at_in = MapCompose(parse_date)
+    updated_at_in = MapCompose(parse_date)
+    scraped_at_in = MapCompose(parse_date)
