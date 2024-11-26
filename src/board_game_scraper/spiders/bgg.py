@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import pprint
 import re
 from typing import TYPE_CHECKING, Any
 
-from attrs import asdict
 from scrapy.http import TextResponse
 from scrapy.selector.unified import Selector, SelectorList
 from scrapy.spiders import SitemapSpider
@@ -96,16 +94,7 @@ class BggSpider(SitemapSpider):
         @url https://boardgamegeek.com/xmlapi2/thing?id=13,822,36218&type=boardgame&videos=1&stats=1&comments=1&ratingcomments=1&pagesize=100&page=1
         @returns items 303 303
         @returns requests 0 0
-        @scrapes name alt_name year description \
-            designer artist publisher \
-            url image_url video_url \
-            min_players max_players min_players_rec max_players_rec \
-            min_players_best max_players_best \
-            min_age min_age_rec min_time max_time \
-            game_type category mechanic cooperative compilation family expansion \
-            rank add_rank num_votes avg_rating stddev_rating \
-            bayes_rating complexity language_dependency \
-            bgg_id scraped_at
+        @scrapes bgg_id scraped_at
         """
 
         assert isinstance(response, TextResponse)
@@ -242,7 +231,6 @@ class BggSpider(SitemapSpider):
             game_item = gldr.load_item()
             assert isinstance(game_item, GameItem)
             assert isinstance(game_item.bgg_id, int)
-            pprint.pp(asdict(game_item))
             yield game_item
 
             for comment in game.xpath("comments/comment"):
@@ -251,6 +239,4 @@ class BggSpider(SitemapSpider):
                 cldr.add_xpath("bgg_user_name", "@username")
                 cldr.add_xpath("bgg_user_rating", "@rating")
                 cldr.add_xpath("comment", "@value")
-                collection_item = cldr.load_item()
-                pprint.pp(asdict(collection_item))
-                yield collection_item
+                yield cldr.load_item()
