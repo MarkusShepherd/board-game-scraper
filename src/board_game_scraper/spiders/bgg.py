@@ -246,18 +246,11 @@ class BggSpider(SitemapSpider):
             yield game_item
 
             for comment in game.xpath("comments/comment"):
-                user_name = comment.xpath("@username").get()
-                item_id = f"{user_name}:{game_item.bgg_id}"
-                cldr = CollectionLoader(
-                    item=CollectionItem(
-                        item_id=item_id,
-                        bgg_id=game_item.bgg_id,
-                        bgg_user_name=user_name,
-                    ),
-                    selector=comment,
-                )
-
+                cldr = CollectionLoader(response=response, selector=comment)
+                cldr.add_value("bgg_id", game_item.bgg_id)
+                cldr.add_xpath("bgg_user_name", "@username")
                 cldr.add_xpath("bgg_user_rating", "@rating")
                 cldr.add_xpath("comment", "@value")
-
-                yield cldr.load_item()
+                collection_item = cldr.load_item()
+                pprint.pp(asdict(collection_item))
+                yield collection_item

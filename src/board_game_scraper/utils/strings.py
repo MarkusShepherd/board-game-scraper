@@ -41,3 +41,9 @@ def normalize_space(item: Any, *, preserve_newline: bool = False) -> str:
         return "\n".join(normalize_space(line) for line in item.splitlines()).strip()
 
     return " ".join(item.split())
+
+
+def lower_or_none(value: Any) -> str | None:
+    """Lower a string or return None."""
+
+    return value.lower() if isinstance(value, str) else None

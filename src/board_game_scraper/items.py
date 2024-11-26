@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from attrs import define, field
 
 from board_game_scraper.utils.dates import now
+from board_game_scraper.utils.strings import lower_or_none
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -89,7 +90,7 @@ class GameItem:
 class UserItem:
     item_id: int | None = None
     bgg_user_name: str | None = field(
-        converter=str.lower,  # type: ignore[misc]
+        converter=lower_or_none,
         default=None,
         metadata={"required": True},
     )
@@ -118,8 +119,7 @@ class UserItem:
 
 @define(kw_only=True)
 class CollectionItem:
-    # TODO: Default to item_id = f"{bgg_user_name}:{bgg_id}"
-    item_id: str | int | None = field(
+    _item_id: str | int | None = field(
         default=None,
         metadata={"required": True},
     )
@@ -128,7 +128,7 @@ class CollectionItem:
         metadata={"required": True},
     )
     bgg_user_name: str | None = field(
-        converter=str.lower,  # type: ignore[misc]
+        converter=lower_or_none,
         default=None,
         metadata={"required": True},
     )
@@ -152,3 +152,7 @@ class CollectionItem:
         factory=now,
         metadata={"required": True},
     )
+
+    @property
+    def item_id(self) -> str | int:
+        return self._item_id or f"{self.bgg_user_name}:{self.bgg_id}"
