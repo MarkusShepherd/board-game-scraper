@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import re
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlencode
 
+from more_itertools import chunked
 from scrapy.http import TextResponse
 from scrapy.selector.unified import Selector, SelectorList
 from scrapy.spiders import SitemapSpider
@@ -53,9 +55,19 @@ class BggSpider(SitemapSpider):
     allowed_domains = ("boardgamegeek.com",)
 
     sitemap_urls = ("https://boardgamegeek.com/robots.txt",)
-    sitemap_follow = (r"/sitemap_geekitems_boardgame_\d+",)
+    sitemap_follow = (r"/sitemap_geekitems_boardgame(compilation|implementation)?_\d+",)
     sitemap_rules = ((r"/xmlapi2/", "parse"),)
     sitemap_alternate_links = True
+
+    bgg_id_regex = re.compile(r"/boardgame(compilation|implementation)?/(\d+)")
+    bgg_xml_api_url = "https://boardgamegeek.com/xmlapi2"
+    request_page_size = 100
+    request_batch_size = 10
+
+    def _api_url(self, action: str, **kwargs: str) -> str:
+        kwargs["pagesize"] = str(self.request_page_size)
+        params = ((k, v) for k, v in kwargs.items() if k and v is not None)
+        return f"{self.bgg_xml_api_url}/{action}?{urlencode(sorted(params))}"
 
     def _get_sitemap_body(self, response: Response) -> bytes:
         sitemap_body = super()._get_sitemap_body(response)
@@ -70,21 +82,34 @@ class BggSpider(SitemapSpider):
         self,
         entries: Iterable[dict[str, Any]],
     ) -> Generator[dict[str, Any], None, None]:
+        bgg_ids: set[int] = set()
+
         for entry in entries:
             loc = entry.get("loc")
             if not loc:
                 continue
 
-            bgg_id = re.search(r"/boardgame/(\d+)", loc)
+            bgg_id_match = self.bgg_id_regex.search(loc)
+            bgg_id = parse_int(bgg_id_match.group(2)) if bgg_id_match else None
 
-            if not bgg_id:
+            if bgg_id:
+                bgg_ids.add(bgg_id)
+            else:
                 yield entry
-                continue
 
-            entry["loc"] = (
-                f"https://boardgamegeek.com/xmlapi2/thing?id={bgg_id.group(1)}&type=boardgame&videos=1&stats=1&comments=1&ratingcomments=1&pagesize=100&page=1"
+        for bgg_ids_chunk in chunked(bgg_ids, self.request_batch_size):
+            bgg_ids_str = ",".join(map(str, bgg_ids_chunk))
+            loc = self._api_url(
+                action="thing",
+                id=bgg_ids_str,
+                type="boardgame",
+                videos="1",
+                stats="1",
+                comments="1",
+                ratingcomments="1",
+                page="1",
             )
-            yield entry
+            yield {"loc": loc}
 
     def parse(  # noqa: PLR0915
         self,
