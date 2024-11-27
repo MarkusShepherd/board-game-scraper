@@ -87,6 +87,33 @@ class GameItem:
 
 
 @define(kw_only=True)
+class RankingItem:
+    ranking_type: str | None = None
+    ranking_id: int | None = None
+
+    bgg_id: int | None = field(
+        default=None,
+        metadata={"required": True},
+    )
+    name: str | None = None
+    year: int | None = None
+
+    rank: int | None = None
+    num_votes: int | None = None
+    avg_rating: float | None = None
+    stddev_rating: float | None = None
+    bayes_rating: float | None = None
+
+    image_url: list[str] | None = None
+    image_file: list[dict[str, str]] | None = None
+    image_blurhash: list[dict[str, str]] | None = None
+
+    published_at: datetime | None = None
+    updated_at: datetime | None = None
+    scraped_at: datetime = field(factory=now)
+
+
+@define(kw_only=True)
 class UserItem:
     item_id: int | None = None
     bgg_user_name: str | None = field(
