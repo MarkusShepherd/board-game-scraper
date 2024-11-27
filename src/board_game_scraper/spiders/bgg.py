@@ -64,6 +64,20 @@ class BggSpider(SitemapSpider):
     request_page_size = 100
     request_batch_size = 10
 
+    def has_seen_bgg_id(self, bgg_id: int) -> bool:
+        state = getattr(self, "state", None)
+        if state is None:
+            self.logger.warning("No spider state found")
+            state = {}
+            self.state = state
+
+        bgg_ids_seen = state.setdefault("bgg_ids_seen", set())
+        assert isinstance(bgg_ids_seen, set)
+        seen = bgg_id in bgg_ids_seen
+        bgg_ids_seen.add(bgg_id)
+
+        return seen
+
     def _api_url(self, action: str, **kwargs: str) -> str:
         kwargs["pagesize"] = str(self.request_page_size)
         params = ((k, v) for k, v in kwargs.items() if k and v is not None)
@@ -87,17 +101,19 @@ class BggSpider(SitemapSpider):
         for entry in entries:
             loc = entry.get("loc")
             if not loc:
+                self.logger.warning("Skipping sitemap entry without loc: %s", entry)
                 continue
 
             bgg_id_match = self.bgg_id_regex.search(loc)
             bgg_id = parse_int(bgg_id_match.group(2)) if bgg_id_match else None
 
             if bgg_id:
-                bgg_ids.add(bgg_id)
+                if not self.has_seen_bgg_id(bgg_id):
+                    bgg_ids.add(bgg_id)
             else:
                 yield entry
 
-        for bgg_ids_chunk in chunked(bgg_ids, self.request_batch_size):
+        for bgg_ids_chunk in chunked(sorted(bgg_ids), self.request_batch_size):
             bgg_ids_str = ",".join(map(str, bgg_ids_chunk))
             loc = self._api_url(
                 action="thing",
