@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import warnings
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode
 
@@ -66,10 +67,9 @@ class BggSpider(SitemapSpider):
 
     def has_seen_bgg_id(self, bgg_id: int) -> bool:
         state = getattr(self, "state", None)
-        if state is None:
-            self.logger.warning("No spider state found")
-            state = {}
-            self.state = state
+        if state is None or not isinstance(state, dict):
+            warnings.warn("No spider state found", stacklevel=2)
+            return False
 
         bgg_ids_seen = state.setdefault("bgg_ids_seen", set())
         assert isinstance(bgg_ids_seen, set)
