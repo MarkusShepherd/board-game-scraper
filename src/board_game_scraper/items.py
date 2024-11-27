@@ -62,7 +62,7 @@ class GameItem:
     integration: list[int] | None = None
 
     rank: int | None = None
-    add_rank: list[dict[str, int]] | None = None
+    add_rank: list[RankingItem] | None = None
     num_votes: int | None = None
     avg_rating: float | None = None
     stddev_rating: float | None = None

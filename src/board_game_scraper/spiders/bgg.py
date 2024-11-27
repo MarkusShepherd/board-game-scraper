@@ -12,8 +12,8 @@ from scrapy.spiders import SitemapSpider
 from scrapy.utils.misc import arg_to_iter
 
 from board_game_scraper.items import CollectionItem, GameItem
-from board_game_scraper.loaders import BggGameLoader, CollectionLoader
-from board_game_scraper.utils.parsers import parse_float, parse_int
+from board_game_scraper.loaders import BggGameLoader, CollectionLoader, RankingLoader
+from board_game_scraper.utils.parsers import parse_int
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
@@ -168,9 +168,8 @@ class BggSpider(SitemapSpider):
                 _value_id(game.xpath("link[@type = 'boardgamepublisher']")),
             )
 
-            # TODO: Full URL from sitemap
             bgg_id = gldr.get_output_value("bgg_id")
-            gldr.add_value("url", f"https://boardgamegeek.com/boardgame/{bgg_id}")
+            gldr.add_value("url", f"https://boardgamegeek.com/boardgame/{bgg_id}/")
             gldr.add_xpath("image_url", ("image/text()", "thumbnail/text()"))
             gldr.add_xpath("video_url", "videos/video/@link")
 
@@ -258,16 +257,17 @@ class BggSpider(SitemapSpider):
             # <numcomments value="2133" />
             # <numweights value="790" />
 
-            for rank in game.xpath('statistics/ratings/ranks/rank[@type = "family"]'):
-                # TODO: This should be its own item type
-                add_rank = {
-                    "game_type": rank.xpath("@name").get(),
-                    "game_type_id": parse_int(rank.xpath("@id").get()),
-                    "name": _remove_rank(rank.xpath("@friendlyname").get()),
-                    "rank": parse_int(rank.xpath("@value").get()),
-                    "bayes_rating": parse_float(rank.xpath("@bayesaverage").get()),
-                }
-                gldr.add_value("add_rank", add_rank)
+            for rank in game.xpath("statistics/ratings/ranks/rank[@type = 'family']"):
+                rldr = RankingLoader(response=response, selector=rank)
+
+                rldr.add_xpath("ranking_type", "@name")
+                rldr.add_xpath("ranking_id", "@id")
+                rldr.add_value("bgg_id", bgg_id)
+
+                rldr.add_xpath("rank", "@value")
+                rldr.add_xpath("bayes_rating", "@bayesaverage")
+
+                gldr.add_value("add_rank", rldr.load_item())
 
             game_item = gldr.load_item()
             assert isinstance(game_item, GameItem)
