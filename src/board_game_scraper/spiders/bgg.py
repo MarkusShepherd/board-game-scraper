@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import warnings
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlencode
 
 from more_itertools import chunked
@@ -27,7 +27,7 @@ def _value_id(
     sep: str = ":",
 ) -> Generator[str, None, None]:
     for item in arg_to_iter(items):
-        assert isinstance(item, Selector)
+        item = cast(Selector, item)
         value = item.xpath("@value").get() or ""
         id_ = item.xpath("@id").get() or ""
         yield f"{value}{sep}{id_}" if id_ else value
@@ -46,7 +46,7 @@ def _value_id_rank(
     sep: str = ":",
 ) -> Generator[str, None, None]:
     for item in arg_to_iter(items):
-        assert isinstance(item, Selector)
+        item = cast(Selector, item)
         value = _remove_rank(item.xpath("@friendlyname").get()) or ""
         id_ = item.xpath("@id").get() or ""
         yield f"{value}{sep}{id_}" if id_ else value
@@ -78,10 +78,8 @@ class BggSpider(SitemapSpider):
     def _get_sitemap_body(self, response: Response) -> bytes:
         sitemap_body = super()._get_sitemap_body(response)
         if sitemap_body is not None:
-            assert isinstance(sitemap_body, bytes)
             return sitemap_body
         self.logger.warning("YOLO – trying to parse sitemap from <%s>", response.url)
-        assert isinstance(response.body, bytes)
         return response.body
 
     def _parse_sitemap(self, response: Response) -> Generator[Request, None, None]:
@@ -140,8 +138,7 @@ class BggSpider(SitemapSpider):
             warnings.warn("No spider state found", stacklevel=2)
             return False
 
-        bgg_ids_seen = state.setdefault("bgg_ids_seen", set())
-        assert isinstance(bgg_ids_seen, set)
+        bgg_ids_seen = cast(set[int], state.setdefault("bgg_ids_seen", set()))
         seen = bgg_id in bgg_ids_seen
         bgg_ids_seen.add(bgg_id)
 
@@ -163,24 +160,23 @@ class BggSpider(SitemapSpider):
         @scrapes bgg_id scraped_at
         """
 
-        assert isinstance(response, TextResponse)
+        response = cast(TextResponse, response)
 
         for game in response.xpath("/items/item"):
-            assert isinstance(game, Selector)
+            game = cast(Selector, game)
             bgg_item_type = game.xpath("@type").get()
             if bgg_item_type != "boardgame":
                 self.logger.info("Skipping item type <%s>", bgg_item_type)
                 continue
 
             game_item = self.extract_game_item(response=response, game=game)
-            assert isinstance(game_item.bgg_id, int)
             yield game_item
 
             for comment in game.xpath("comments/comment"):
                 yield self.extract_collection_item(
                     response=response,
                     comment=comment,
-                    bgg_id=game_item.bgg_id,
+                    bgg_id=cast(int, game_item.bgg_id),
                 )
 
     def extract_game_item(self, *, response: TextResponse, game: Selector) -> GameItem:
@@ -297,9 +293,7 @@ class BggSpider(SitemapSpider):
             ranking_item = self.extract_ranking_item(response=response, rank=rank)
             ldr.add_value("add_rank", ranking_item)
 
-        game_item = ldr.load_item()
-        assert isinstance(game_item, GameItem)
-        return game_item
+        return cast(GameItem, ldr.load_item())
 
     def extract_ranking_item(
         self,
@@ -312,9 +306,7 @@ class BggSpider(SitemapSpider):
         ldr.add_xpath("ranking_id", "@id")
         ldr.add_xpath("rank", "@value")
         ldr.add_xpath("bayes_rating", "@bayesaverage")
-        ranking_item = ldr.load_item()
-        assert isinstance(ranking_item, RankingItem)
-        return ranking_item
+        return cast(RankingItem, ldr.load_item())
 
     def extract_collection_item(
         self,
@@ -328,6 +320,4 @@ class BggSpider(SitemapSpider):
         ldr.add_xpath("bgg_user_name", "@username")
         ldr.add_xpath("bgg_user_rating", "@rating")
         ldr.add_xpath("comment", "@value")
-        collection_item = ldr.load_item()
-        assert isinstance(collection_item, CollectionItem)
-        return collection_item
+        return cast(CollectionItem, ldr.load_item())
