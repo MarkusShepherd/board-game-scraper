@@ -65,10 +65,11 @@ class BggSpider(SitemapSpider):
     # Parse alternate links in sitemap locs
     sitemap_alternate_links = True
 
-    bgg_id_regex = re.compile(r"/boardgame(compilation|implementation)?/(\d+)")
+    # https://boardgamegeek.com/wiki/page/BGG_XML_API2
     bgg_xml_api_url = "https://boardgamegeek.com/xmlapi2"
+    bgg_id_regex = re.compile(r"/boardgame(compilation|implementation)?/(\d+)")
     request_page_size = 100
-    request_batch_size = 10
+    game_request_batch_size = 20
 
     def start_requests(self) -> Iterable[Request]:
         # TODO: Add other ways to create game and user requests
@@ -127,7 +128,7 @@ class BggSpider(SitemapSpider):
             else:
                 yield entry
 
-        for bgg_ids_chunk in chunked(sorted(bgg_ids), self.request_batch_size):
+        for bgg_ids_chunk in chunked(sorted(bgg_ids), self.game_request_batch_size):
             bgg_ids_str = ",".join(map(str, bgg_ids_chunk))
             loc = self._api_url(
                 action="thing",
@@ -135,7 +136,6 @@ class BggSpider(SitemapSpider):
                 type="boardgame",
                 videos="1",
                 stats="1",
-                comments="1",
                 ratingcomments="1",
                 page="1",
             )
