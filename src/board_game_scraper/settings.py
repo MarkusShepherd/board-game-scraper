@@ -12,14 +12,16 @@ LOG_SCRAPED_ITEMS = os.getenv("LOG_SCRAPED_ITEMS")
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-GAME_ITEM_URI = f"{BASE_DIR}/feeds_v3/%(name)s/GameItem/%(time)s.jl"
-USER_ITEM_URI = f"{BASE_DIR}/feeds_v3/%(name)s/UserItem/%(time)s.jl"
-COLLECTION_ITEM_URI = f"{BASE_DIR}/feeds_v3/%(name)s/CollectionItem/%(time)s.jl"
+GAME_ITEM_URI = f"{BASE_DIR}/feeds_v3/%(name)s/GameItem/%(time)s-%(batch_id)05d.jl"
+USER_ITEM_URI = f"{BASE_DIR}/feeds_v3/%(name)s/UserItem/%(time)s-%(batch_id)05d.jl"
+COLLECTION_ITEM_URI = (
+    f"{BASE_DIR}/feeds_v3/%(name)s/CollectionItem/%(time)s-%(batch_id)05d.jl"
+)
 
 FEED_EXPORTERS = {
     "sparsejsonlines": "board_game_scraper.exporters.SparseJsonLinesItemExporter",
 }
-
+FEED_EXPORT_BATCH_ITEM_COUNT = 10_000
 FEEDS = {
     GAME_ITEM_URI: {
         "item_classes": ["board_game_scraper.items.GameItem"],
