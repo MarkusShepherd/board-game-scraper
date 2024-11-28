@@ -152,7 +152,7 @@ class BggSpider(SitemapSpider):
         params = ((k, v) for k, v in kwargs.items() if k and v is not None)
         return f"{self.bgg_xml_api_url}/{action}?{urlencode(sorted(params))}"
 
-    def parse_games(  # noqa: PLR0915
+    def parse_games(
         self,
         response: Response,
     ) -> Generator[GameItem | CollectionItem, None, None]:
@@ -172,131 +172,7 @@ class BggSpider(SitemapSpider):
                 self.logger.info("Skipping item type <%s>", bgg_item_type)
                 continue
 
-            gldr = BggGameLoader(response=response, selector=game)
-
-            gldr.add_xpath("bgg_id", "@id")
-            gldr.add_xpath("name", "name[@type = 'primary']/@value")
-            gldr.add_xpath("alt_name", "name/@value")
-            gldr.add_xpath("year", "yearpublished/@value")
-            gldr.add_xpath("description", "description/text()")
-
-            gldr.add_value(
-                "designer",
-                _value_id(game.xpath("link[@type = 'boardgamedesigner']")),
-            )
-            gldr.add_value(
-                "artist",
-                _value_id(game.xpath("link[@type = 'boardgameartist']")),
-            )
-            gldr.add_value(
-                "publisher",
-                _value_id(game.xpath("link[@type = 'boardgamepublisher']")),
-            )
-
-            bgg_id = gldr.get_output_value("bgg_id")
-            gldr.add_value("url", f"https://boardgamegeek.com/boardgame/{bgg_id}/")
-            gldr.add_xpath("image_url", ("image/text()", "thumbnail/text()"))
-            gldr.add_xpath("video_url", "videos/video/@link")
-
-            gldr.add_xpath("min_players", "minplayers/@value")
-            gldr.add_xpath("max_players", "maxplayers/@value")
-            # TODO: min_players_rec, max_players_rec, min_players_best, max_players_best
-
-            gldr.add_xpath("min_age", "minage/@value")
-            gldr.add_xpath("max_age", "maxage/@value")
-            # TODO: min_age_rec, max_age_rec
-
-            gldr.add_xpath(
-                "min_time",
-                ("minplaytime/@value", "playingtime/@value", "maxplaytime/@value"),
-            )
-            gldr.add_xpath(
-                "max_time",
-                ("maxplaytime/@value", "playingtime/@value", "minplaytime/@value"),
-            )
-
-            gldr.add_value(
-                "game_type",
-                _value_id_rank(
-                    game.xpath("statistics/ratings/ranks/rank[@type = 'family']"),
-                ),
-            )
-            gldr.add_value(
-                "category",
-                _value_id(game.xpath("link[@type = 'boardgamecategory']")),
-            )
-            gldr.add_value(
-                "mechanic",
-                _value_id(game.xpath("link[@type = 'boardgamemechanic']")),
-            )
-            # look for <link type="boardgamemechanic"
-            #              id="2023" value="Co-operative Play" />
-            gldr.add_value(
-                "cooperative",
-                bool(game.xpath("link[@type = 'boardgamemechanic' and @id = '2023']")),
-            )
-            gldr.add_value(
-                "compilation",
-                bool(
-                    game.xpath(
-                        "link[@type = 'boardgamecompilation' and @inbound = 'true']",
-                    ),
-                ),
-            )
-            gldr.add_xpath(
-                "compilation_of",
-                "link[@type = 'boardgamecompilation' and @inbound = 'true']/@id",
-            )
-            gldr.add_value(
-                "family",
-                _value_id(game.xpath("link[@type = 'boardgamefamily']")),
-            )
-            gldr.add_value(
-                "expansion",
-                _value_id(game.xpath("link[@type = 'boardgameexpansion']")),
-            )
-            gldr.add_xpath(
-                "implementation",
-                "link[@type = 'boardgameimplementation' and @inbound = 'true']/@id",
-            )
-            gldr.add_xpath(
-                "integration",
-                "link[@type = 'boardgameintegration']/@id",
-            )
-
-            gldr.add_xpath(
-                "rank",
-                "statistics/ratings/ranks/rank[@name = 'boardgame']/@value",
-            )
-            gldr.add_xpath("num_votes", "statistics/ratings/usersrated/@value")
-            gldr.add_xpath("avg_rating", "statistics/ratings/average/@value")
-            gldr.add_xpath("stddev_rating", "statistics/ratings/stddev/@value")
-            gldr.add_xpath("bayes_rating", "statistics/ratings/bayesaverage/@value")
-            gldr.add_xpath("complexity", "statistics/ratings/averageweight/@value")
-            # TODO: language_dependency
-            # TODO:
-            # <owned value="8241" />
-            # <trading value="276" />
-            # <wanting value="494" />
-            # <wishing value="2171" />
-            # <numcomments value="2133" />
-            # <numweights value="790" />
-
-            for rank in game.xpath("statistics/ratings/ranks/rank[@type = 'family']"):
-                rldr = RankingLoader(response=response, selector=rank)
-
-                rldr.add_xpath("ranking_type", "@name")
-                rldr.add_xpath("ranking_id", "@id")
-                rldr.add_value("bgg_id", bgg_id)
-
-                rldr.add_xpath("rank", "@value")
-                rldr.add_xpath("bayes_rating", "@bayesaverage")
-
-                gldr.add_value("add_rank", rldr.load_item())
-
-            game_item = gldr.load_item()
-            assert isinstance(game_item, GameItem)
-            assert isinstance(game_item.bgg_id, int)
+            game_item = self.scrape_game_item(response=response, game=game)
             yield game_item
 
             for comment in game.xpath("comments/comment"):
@@ -306,3 +182,129 @@ class BggSpider(SitemapSpider):
                 cldr.add_xpath("bgg_user_rating", "@rating")
                 cldr.add_xpath("comment", "@value")
                 yield cldr.load_item()
+
+    def scrape_game_item(self, *, response: TextResponse, game: Selector) -> GameItem:
+        gldr = BggGameLoader(response=response, selector=game)
+
+        gldr.add_xpath("bgg_id", "@id")
+        gldr.add_xpath("name", "name[@type = 'primary']/@value")
+        gldr.add_xpath("alt_name", "name/@value")
+        gldr.add_xpath("year", "yearpublished/@value")
+        gldr.add_xpath("description", "description/text()")
+
+        gldr.add_value(
+            "designer",
+            _value_id(game.xpath("link[@type = 'boardgamedesigner']")),
+        )
+        gldr.add_value(
+            "artist",
+            _value_id(game.xpath("link[@type = 'boardgameartist']")),
+        )
+        gldr.add_value(
+            "publisher",
+            _value_id(game.xpath("link[@type = 'boardgamepublisher']")),
+        )
+
+        bgg_id = gldr.get_output_value("bgg_id")
+        gldr.add_value("url", f"/boardgame/{bgg_id}/")
+        gldr.add_xpath("image_url", ("image/text()", "thumbnail/text()"))
+        gldr.add_xpath("video_url", "videos/video/@link")
+
+        gldr.add_xpath("min_players", "minplayers/@value")
+        gldr.add_xpath("max_players", "maxplayers/@value")
+        # TODO: min_players_rec, max_players_rec, min_players_best, max_players_best
+
+        gldr.add_xpath("min_age", "minage/@value")
+        gldr.add_xpath("max_age", "maxage/@value")
+        # TODO: min_age_rec, max_age_rec
+
+        gldr.add_xpath(
+            "min_time",
+            ("minplaytime/@value", "playingtime/@value", "maxplaytime/@value"),
+        )
+        gldr.add_xpath(
+            "max_time",
+            ("maxplaytime/@value", "playingtime/@value", "minplaytime/@value"),
+        )
+
+        gldr.add_value(
+            "game_type",
+            _value_id_rank(
+                game.xpath("statistics/ratings/ranks/rank[@type = 'family']"),
+            ),
+        )
+        gldr.add_value(
+            "category",
+            _value_id(game.xpath("link[@type = 'boardgamecategory']")),
+        )
+        gldr.add_value(
+            "mechanic",
+            _value_id(game.xpath("link[@type = 'boardgamemechanic']")),
+        )
+        # look for <link type="boardgamemechanic" id="2023" value="Co-operative Play" />
+        gldr.add_value(
+            "cooperative",
+            bool(game.xpath("link[@type = 'boardgamemechanic' and @id = '2023']")),
+        )
+        gldr.add_value(
+            "compilation",
+            bool(
+                game.xpath(
+                    "link[@type = 'boardgamecompilation' and @inbound = 'true']",
+                ),
+            ),
+        )
+        gldr.add_xpath(
+            "compilation_of",
+            "link[@type = 'boardgamecompilation' and @inbound = 'true']/@id",
+        )
+        gldr.add_value(
+            "family",
+            _value_id(game.xpath("link[@type = 'boardgamefamily']")),
+        )
+        gldr.add_value(
+            "expansion",
+            _value_id(game.xpath("link[@type = 'boardgameexpansion']")),
+        )
+        gldr.add_xpath(
+            "implementation",
+            "link[@type = 'boardgameimplementation' and @inbound = 'true']/@id",
+        )
+        gldr.add_xpath(
+            "integration",
+            "link[@type = 'boardgameintegration']/@id",
+        )
+
+        gldr.add_xpath(
+            "rank",
+            "statistics/ratings/ranks/rank[@name = 'boardgame']/@value",
+        )
+        gldr.add_xpath("num_votes", "statistics/ratings/usersrated/@value")
+        gldr.add_xpath("avg_rating", "statistics/ratings/average/@value")
+        gldr.add_xpath("stddev_rating", "statistics/ratings/stddev/@value")
+        gldr.add_xpath("bayes_rating", "statistics/ratings/bayesaverage/@value")
+        gldr.add_xpath("complexity", "statistics/ratings/averageweight/@value")
+        # TODO: language_dependency
+        # TODO:
+        # <owned value="8241" />
+        # <trading value="276" />
+        # <wanting value="494" />
+        # <wishing value="2171" />
+        # <numcomments value="2133" />
+        # <numweights value="790" />
+
+        for rank in game.xpath("statistics/ratings/ranks/rank[@type = 'family']"):
+            rldr = RankingLoader(response=response, selector=rank)
+
+            rldr.add_xpath("ranking_type", "@name")
+            rldr.add_xpath("ranking_id", "@id")
+            rldr.add_value("bgg_id", bgg_id)
+
+            rldr.add_xpath("rank", "@value")
+            rldr.add_xpath("bayes_rating", "@bayesaverage")
+
+            gldr.add_value("add_rank", rldr.load_item())
+
+        game_item = gldr.load_item()
+        assert isinstance(game_item, GameItem)
+        return game_item
