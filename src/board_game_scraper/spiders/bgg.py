@@ -172,18 +172,18 @@ class BggSpider(SitemapSpider):
                 self.logger.info("Skipping item type <%s>", bgg_item_type)
                 continue
 
-            game_item = self.scrape_game_item(response=response, game=game)
+            game_item = self.extract_game_item(response=response, game=game)
+            assert isinstance(game_item.bgg_id, int)
             yield game_item
 
             for comment in game.xpath("comments/comment"):
-                cldr = CollectionLoader(response=response, selector=comment)
-                cldr.add_value("bgg_id", game_item.bgg_id)
-                cldr.add_xpath("bgg_user_name", "@username")
-                cldr.add_xpath("bgg_user_rating", "@rating")
-                cldr.add_xpath("comment", "@value")
-                yield cldr.load_item()
+                yield self.extract_collection_item(
+                    response=response,
+                    comment=comment,
+                    bgg_id=game_item.bgg_id,
+                )
 
-    def scrape_game_item(self, *, response: TextResponse, game: Selector) -> GameItem:
+    def extract_game_item(self, *, response: TextResponse, game: Selector) -> GameItem:
         ldr = BggGameLoader(response=response, selector=game)
 
         ldr.add_xpath("bgg_id", "@id")
@@ -294,14 +294,14 @@ class BggSpider(SitemapSpider):
         # <numweights value="790" />
 
         for rank in game.xpath("statistics/ratings/ranks/rank[@type = 'family']"):
-            ranking_item = self.scrape_ranking_item(response=response, rank=rank)
+            ranking_item = self.extract_ranking_item(response=response, rank=rank)
             ldr.add_value("add_rank", ranking_item)
 
         game_item = ldr.load_item()
         assert isinstance(game_item, GameItem)
         return game_item
 
-    def scrape_ranking_item(
+    def extract_ranking_item(
         self,
         *,
         response: TextResponse,
@@ -315,3 +315,19 @@ class BggSpider(SitemapSpider):
         ranking_item = ldr.load_item()
         assert isinstance(ranking_item, RankingItem)
         return ranking_item
+
+    def extract_collection_item(
+        self,
+        *,
+        response: TextResponse,
+        comment: Selector,
+        bgg_id: int,
+    ) -> CollectionItem:
+        ldr = CollectionLoader(response=response, selector=comment)
+        ldr.add_value("bgg_id", bgg_id)
+        ldr.add_xpath("bgg_user_name", "@username")
+        ldr.add_xpath("bgg_user_rating", "@rating")
+        ldr.add_xpath("comment", "@value")
+        collection_item = ldr.load_item()
+        assert isinstance(collection_item, CollectionItem)
+        return collection_item
