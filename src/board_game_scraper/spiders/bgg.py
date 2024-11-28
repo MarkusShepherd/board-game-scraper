@@ -123,6 +123,11 @@ class BggSpider(SitemapSpider):
             )
             yield {"loc": loc}
 
+    def api_url(self, action: str, **kwargs: str | None) -> str:
+        kwargs["pagesize"] = str(self.request_page_size)
+        params = ((k, v) for k, v in kwargs.items() if k and v is not None)
+        return f"{self.bgg_xml_api_url}/{action}?{urlencode(sorted(params))}"
+
     def has_seen_bgg_id(self, bgg_id: int) -> bool:
         state = getattr(self, "state", None)
         if state is None or not isinstance(state, dict):
@@ -136,12 +141,44 @@ class BggSpider(SitemapSpider):
 
         return seen
 
-    def api_url(self, action: str, **kwargs: str) -> str:
-        kwargs["pagesize"] = str(self.request_page_size)
-        params = ((k, v) for k, v in kwargs.items() if k and v is not None)
-        return f"{self.bgg_xml_api_url}/{action}?{urlencode(sorted(params))}"
+    def game_requests(
+        self,
+        bgg_ids: Iterable[int],
+        page: int = 1,
+        priority: int = 0,
+        **kwargs: Any,
+    ) -> Generator[Request, None, None]:
+        bgg_ids = frozenset(bgg_ids)
 
-    def parse(  # noqa: PLR0915
+        if page == 1:
+            bgg_ids = [bgg_id for bgg_id in bgg_ids if not self.has_seen_bgg_id(bgg_id)]
+
+        if not bgg_ids:
+            return
+
+        for bgg_ids_chunk in chunked(sorted(bgg_ids), self.game_request_batch_size):
+            bgg_ids_str = ",".join(map(str, bgg_ids_chunk))
+            url = self.api_url(
+                action="thing",
+                id=bgg_ids_str,
+                type="boardgame",
+                videos="1",
+                stats="1" if page == 1 else None,
+                ratingcomments="1" if page == 1 else None,
+                page=str(page),
+            )
+
+            request = Request(
+                url=url,
+                callback=self.parse_game,  # type: ignore[arg-type]
+                priority=priority,
+            )
+            request.meta["page"] = page
+            request.meta.update(kwargs)
+
+            yield request
+
+    def parse_game(  # noqa: PLR0915
         self,
         response: Response,
     ) -> Generator[GameItem | CollectionItem, None, None]:
