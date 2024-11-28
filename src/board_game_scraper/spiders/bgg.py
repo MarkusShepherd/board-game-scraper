@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 import warnings
 from collections.abc import Iterable
@@ -17,9 +18,11 @@ from board_game_scraper.loaders import BggGameLoader, CollectionLoader, RankingL
 from board_game_scraper.utils.parsers import parse_int
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Iterable
+    from collections.abc import Generator
 
     from scrapy.http import Response
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _value_id(
@@ -156,7 +159,7 @@ class BggSpider(SitemapSpider):
     def parse_games(
         self,
         response: Response,
-    ) -> Generator[GameItem | CollectionItem, None, None]:
+    ) -> Generator[Request | GameItem | CollectionItem, None, None]:
         """
         @url https://boardgamegeek.com/xmlapi2/thing?id=13,822,36218&type=boardgame&ratingcomments=1&stats=1&videos=1&pagesize=100
         @returns items 303 303
@@ -165,6 +168,17 @@ class BggSpider(SitemapSpider):
         """
 
         response = cast(TextResponse, response)
+        request = cast(Request, response.request)
+
+        page, max_page = extract_page_number(response, self.request_page_size)
+        bgg_ids = cast(Iterable[int], response.meta.get("bgg_ids") or ())
+        if page < max_page:
+            yield from self.game_requests(
+                bgg_ids=bgg_ids,
+                page=page + 1,
+                priority=request.priority + 1,
+                max_page=max_page,
+            )
 
         for game in response.xpath("/items/item"):
             game = cast(Selector, game)
@@ -173,14 +187,20 @@ class BggSpider(SitemapSpider):
                 self.logger.warning("Skipping item type <%s>", bgg_item_type)
                 continue
 
-            game_item = self.extract_game_item(response=response, game=game)
-            yield game_item
+            bgg_id = parse_int(game.xpath("@id").get())
+            if not bgg_id:
+                self.logger.warning("Skipping item without bgg_id")
+                continue
+
+            if page == 1:
+                game_item = self.extract_game_item(response=response, game=game)
+                yield game_item
 
             for comment in game.xpath("comments/comment"):
                 yield self.extract_collection_item(
                     response=response,
                     comment=comment,
-                    bgg_id=cast(int, game_item.bgg_id),
+                    bgg_id=bgg_id,
                 )
 
     def extract_game_item(self, *, response: TextResponse, game: Selector) -> GameItem:
@@ -325,3 +345,67 @@ class BggSpider(SitemapSpider):
         ldr.add_xpath("bgg_user_rating", "@rating")
         ldr.add_xpath("comment", "@value")
         return cast(CollectionItem, ldr.load_item())
+
+
+def extract_page_number(
+    response: TextResponse,
+    request_page_size: int,
+) -> tuple[int, int]:
+    page_from_meta = parse_int(response.meta.get("page"))
+    pages_from_response = tuple(
+        filter(
+            None,
+            map(parse_int, response.xpath("/items/item/comments/@page").getall()),
+        ),
+    )
+    if pages_from_response:
+        if len(frozenset(pages_from_response)) > 1:
+            LOGGER.warning(
+                "Multiple different pages found, using first one: %s",
+                pages_from_response,
+            )
+        page_from_response = pages_from_response[0]
+    else:
+        page_from_response = None
+
+    if page_from_meta:
+        if page_from_response and page_from_meta != page_from_response:
+            LOGGER.warning(
+                "Different page numbers found, using first one: %d != %d",
+                page_from_meta,
+                page_from_response,
+            )
+        page = page_from_meta
+    elif page_from_response:
+        page = page_from_response
+    else:
+        LOGGER.warning("No page number found, using 1")
+        page = 1
+
+    max_page_from_meta = parse_int(response.meta.get("max_page"))
+    total_items = filter(
+        None,
+        map(parse_int, response.xpath("/items/item/comments/@totalitems").getall()),
+    )
+    max_page_from_response = max(total_items, default=0) // request_page_size
+
+    if max_page_from_meta:
+        if max_page_from_response and max_page_from_meta != max_page_from_response:
+            LOGGER.info(
+                "Different max page numbers found, using larger one: %d != %d",
+                max_page_from_meta,
+                max_page_from_response,
+            )
+            max_page = max(max_page_from_meta, max_page_from_response)
+        else:
+            max_page = max_page_from_meta
+    elif max_page_from_response:
+        max_page = max_page_from_response
+    else:
+        LOGGER.debug(
+            "No max page number found, using current page number %d",
+            page,
+        )
+        max_page = page
+
+    return page, max_page
