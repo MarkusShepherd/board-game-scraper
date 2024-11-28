@@ -16,22 +16,26 @@ GAME_ITEM_URI = f"{BASE_DIR}/feeds_v3/%(name)s/GameItem/%(time)s.jl"
 USER_ITEM_URI = f"{BASE_DIR}/feeds_v3/%(name)s/UserItem/%(time)s.jl"
 COLLECTION_ITEM_URI = f"{BASE_DIR}/feeds_v3/%(name)s/CollectionItem/%(time)s.jl"
 
+FEED_EXPORTERS = {
+    "sparsejsonlines": "board_game_scraper.exporters.SparseJsonLinesItemExporter",
+}
+
 FEEDS = {
     GAME_ITEM_URI: {
         "item_classes": ["board_game_scraper.items.GameItem"],
-        "format": "jsonlines",
+        "format": "sparsejsonlines",
         "overwrite": False,
         "store_empty": False,
     },
     USER_ITEM_URI: {
         "item_classes": ["board_game_scraper.items.UserItem"],
-        "format": "jsonlines",
+        "format": "sparsejsonlines",
         "overwrite": False,
         "store_empty": False,
     },
     COLLECTION_ITEM_URI: {
         "item_classes": ["board_game_scraper.items.CollectionItem"],
-        "format": "jsonlines",
+        "format": "sparsejsonlines",
         "overwrite": False,
         "store_empty": False,
     },

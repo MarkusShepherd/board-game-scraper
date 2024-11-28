@@ -146,7 +146,8 @@ class UserItem:
 
 @define(kw_only=True)
 class CollectionItem:
-    _item_id: str | int | None = field(
+    # TODO: Default to f"{self.bgg_user_name}:{self.bgg_id}"
+    item_id: str | int | None = field(
         default=None,
         metadata={"required": True},
     )
@@ -179,7 +180,3 @@ class CollectionItem:
         factory=now,
         metadata={"required": True},
     )
-
-    @property
-    def item_id(self) -> str | int:
-        return self._item_id or f"{self.bgg_user_name}:{self.bgg_id}"
