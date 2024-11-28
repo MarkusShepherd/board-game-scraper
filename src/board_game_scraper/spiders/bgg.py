@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import re
 import warnings
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode
 
 from more_itertools import chunked
-from scrapy.http import TextResponse
+from scrapy.http import Request, TextResponse
 from scrapy.selector.unified import Selector, SelectorList
 from scrapy.spiders import SitemapSpider
 from scrapy.utils.misc import arg_to_iter
@@ -55,15 +56,28 @@ class BggSpider(SitemapSpider):
     name = "bgg"
     allowed_domains = ("boardgamegeek.com",)
 
+    # Start URLs for sitemap crawling
     sitemap_urls = ("https://boardgamegeek.com/robots.txt",)
+    # Recursively follow sitemapindex locs if they match any of these patterns
     sitemap_follow = (r"/sitemap_geekitems_boardgame(compilation|implementation)?_\d+",)
+    # Parse sitemap urlset locs with these callback rules
     sitemap_rules = ((r"/xmlapi2/", "parse"),)
+    # Parse alternate links in sitemap locs
     sitemap_alternate_links = True
 
     bgg_id_regex = re.compile(r"/boardgame(compilation|implementation)?/(\d+)")
     bgg_xml_api_url = "https://boardgamegeek.com/xmlapi2"
     request_page_size = 100
     request_batch_size = 10
+
+    def start_requests(self) -> Iterable[Request]:
+        # TODO: Add other ways to create game and user requests
+        return super().start_requests()
+
+    def _parse_sitemap(self, response: Response) -> Iterable[Request]:
+        # TODO: Instead of having the sitemap_filter change the loc, intercept the
+        # relevant requests here and batch them for game_requests()
+        return super()._parse_sitemap(response)
 
     def has_seen_bgg_id(self, bgg_id: int) -> bool:
         state = getattr(self, "state", None)
