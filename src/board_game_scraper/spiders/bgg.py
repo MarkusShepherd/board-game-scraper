@@ -402,10 +402,6 @@ def extract_page_number(
     elif max_page_from_response:
         max_page = max_page_from_response
     else:
-        LOGGER.debug(
-            "No max page number found, using current page number %d",
-            page,
-        )
         max_page = page
 
     return page, max_page
