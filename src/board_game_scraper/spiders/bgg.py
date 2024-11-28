@@ -116,11 +116,12 @@ class BggSpider(SitemapSpider):
         if not bgg_ids:
             return
 
-        for bgg_ids_chunk in chunked(sorted(bgg_ids), self.game_request_batch_size):
-            bgg_ids_str = ",".join(map(str, bgg_ids_chunk))
+        for ichunk in chunked(sorted(bgg_ids), self.game_request_batch_size):
+            chunk = tuple(ichunk)
+            chunk_str = ",".join(map(str, chunk))
             url = self.api_url(
                 action="thing",
-                id=bgg_ids_str,
+                id=chunk_str,
                 type="boardgame",
                 videos="1",
                 stats="1" if page == 1 else None,
@@ -128,15 +129,12 @@ class BggSpider(SitemapSpider):
                 page=str(page),
             )
 
-            request = Request(
+            yield Request(
                 url=url,
                 callback=self.parse_games,  # type: ignore[arg-type]
                 priority=priority,
+                meta={**kwargs, "bgg_ids": chunk, "page": page},
             )
-            request.meta["page"] = page
-            request.meta.update(kwargs)
-
-            yield request
 
     def has_seen_bgg_id(self, bgg_id: int) -> bool:
         state = getattr(self, "state", None)
@@ -160,7 +158,7 @@ class BggSpider(SitemapSpider):
         response: Response,
     ) -> Generator[GameItem | CollectionItem, None, None]:
         """
-        @url https://boardgamegeek.com/xmlapi2/thing?id=13,822,36218&type=boardgame&videos=1&stats=1&comments=1&ratingcomments=1&pagesize=100&page=1
+        @url https://boardgamegeek.com/xmlapi2/thing?id=13,822,36218&type=boardgame&ratingcomments=1&stats=1&videos=1&pagesize=100
         @returns items 303 303
         @returns requests 0 0
         @scrapes bgg_id scraped_at
@@ -172,7 +170,7 @@ class BggSpider(SitemapSpider):
             game = cast(Selector, game)
             bgg_item_type = game.xpath("@type").get()
             if bgg_item_type != "boardgame":
-                self.logger.info("Skipping item type <%s>", bgg_item_type)
+                self.logger.warning("Skipping item type <%s>", bgg_item_type)
                 continue
 
             game_item = self.extract_game_item(response=response, game=game)
