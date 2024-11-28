@@ -75,29 +75,6 @@ class BggSpider(SitemapSpider):
         # TODO: Add other ways to create game and user requests
         return super().start_requests()
 
-    def _parse_sitemap(self, response: Response) -> Iterable[Request]:
-        # TODO: Instead of having the sitemap_filter change the loc, intercept the
-        # relevant requests here and batch them for game_requests()
-        return super()._parse_sitemap(response)
-
-    def has_seen_bgg_id(self, bgg_id: int) -> bool:
-        state = getattr(self, "state", None)
-        if state is None or not isinstance(state, dict):
-            warnings.warn("No spider state found", stacklevel=2)
-            return False
-
-        bgg_ids_seen = state.setdefault("bgg_ids_seen", set())
-        assert isinstance(bgg_ids_seen, set)
-        seen = bgg_id in bgg_ids_seen
-        bgg_ids_seen.add(bgg_id)
-
-        return seen
-
-    def _api_url(self, action: str, **kwargs: str) -> str:
-        kwargs["pagesize"] = str(self.request_page_size)
-        params = ((k, v) for k, v in kwargs.items() if k and v is not None)
-        return f"{self.bgg_xml_api_url}/{action}?{urlencode(sorted(params))}"
-
     def _get_sitemap_body(self, response: Response) -> bytes:
         sitemap_body = super()._get_sitemap_body(response)
         if sitemap_body is not None:
@@ -106,6 +83,11 @@ class BggSpider(SitemapSpider):
         self.logger.warning("YOLO – trying to parse sitemap from <%s>", response.url)
         assert isinstance(response.body, bytes)
         return response.body
+
+    def _parse_sitemap(self, response: Response) -> Iterable[Request]:
+        # TODO: Instead of having the sitemap_filter change the loc, intercept the
+        # relevant requests here and batch them for game_requests()
+        return super()._parse_sitemap(response)
 
     def sitemap_filter(
         self,
@@ -130,7 +112,7 @@ class BggSpider(SitemapSpider):
 
         for bgg_ids_chunk in chunked(sorted(bgg_ids), self.game_request_batch_size):
             bgg_ids_str = ",".join(map(str, bgg_ids_chunk))
-            loc = self._api_url(
+            loc = self.api_url(
                 action="thing",
                 id=bgg_ids_str,
                 type="boardgame",
@@ -140,6 +122,24 @@ class BggSpider(SitemapSpider):
                 page="1",
             )
             yield {"loc": loc}
+
+    def has_seen_bgg_id(self, bgg_id: int) -> bool:
+        state = getattr(self, "state", None)
+        if state is None or not isinstance(state, dict):
+            warnings.warn("No spider state found", stacklevel=2)
+            return False
+
+        bgg_ids_seen = state.setdefault("bgg_ids_seen", set())
+        assert isinstance(bgg_ids_seen, set)
+        seen = bgg_id in bgg_ids_seen
+        bgg_ids_seen.add(bgg_id)
+
+        return seen
+
+    def api_url(self, action: str, **kwargs: str) -> str:
+        kwargs["pagesize"] = str(self.request_page_size)
+        params = ((k, v) for k, v in kwargs.items() if k and v is not None)
+        return f"{self.bgg_xml_api_url}/{action}?{urlencode(sorted(params))}"
 
     def parse(  # noqa: PLR0915
         self,
