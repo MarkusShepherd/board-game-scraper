@@ -83,6 +83,12 @@ class BggSpider(SitemapSpider):
         return response.body
 
     def _parse_sitemap(self, response: Response) -> Generator[Request, None, None]:
+        """
+        @url https://boardgamegeek.com/sitemap_geekitems_boardgame_1
+        @returns items 0 0
+        @returns requests 500 500
+        """
+
         bgg_ids: set[int] = set()
 
         for request in super()._parse_sitemap(response):
