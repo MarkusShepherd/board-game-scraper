@@ -75,6 +75,10 @@ class BggSpider(SitemapSpider):
     # Parse alternate links in sitemap locs
     sitemap_alternate_links = True
 
+    custom_settings = {  # noqa: RUF012
+        "DOWNLOAD_DELAY": 2,
+    }
+
     def start_requests(self) -> Iterable[Request]:
         # TODO: Add other ways to create game and user requests
         return super().start_requests()
