@@ -107,10 +107,11 @@ class BggSpider(SitemapSpider):
             else:
                 yield request
 
-        yield from self.game_requests(bgg_ids, priority=-1)
+        yield from self.game_requests(bgg_ids=bgg_ids, priority=-1)
 
     def game_requests(
         self,
+        *,
         bgg_ids: Iterable[int],
         page: int = 1,
         priority: int = 0,
@@ -153,6 +154,32 @@ class BggSpider(SitemapSpider):
         bgg_ids_seen.add(bgg_id)
 
         return seen
+
+    def collection_request(
+        self,
+        *,
+        user_name: str,
+        priority: int = 0,
+        **kwargs: Any,
+    ) -> Request:
+        user_name = user_name.lower()
+
+        url = self.api_url(
+            action="collection",
+            username=user_name,
+            subtype="boardgame",
+            excludesubtype="boardgameexpansion",
+            stats="1",
+            version="0",
+        )
+
+        return Request(
+            url=url,
+            callback=self.parse_collection,  # type: ignore[arg-type]
+            cb_kwargs={"bgg_user_name": user_name},
+            priority=priority,
+            meta=kwargs,
+        )
 
     def api_url(self, action: str, **kwargs: str | None) -> str:
         kwargs["pagesize"] = str(self.request_page_size)
@@ -350,6 +377,13 @@ class BggSpider(SitemapSpider):
         ldr.add_xpath("bgg_user_rating", "@rating")
         ldr.add_xpath("comment", "@value")
         return cast(CollectionItem, ldr.load_item())
+
+    def parse_collection(
+        self,
+        response: Response,
+        bgg_user_name: str,
+    ) -> Generator[CollectionItem, None, None]:
+        yield from ()
 
 
 def extract_page_number(
