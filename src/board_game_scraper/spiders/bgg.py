@@ -119,12 +119,10 @@ class BggSpider(SitemapSpider):
         if not bgg_ids:
             return
 
-        for ichunk in chunked(sorted(bgg_ids), self.game_request_batch_size):
-            chunk = tuple(ichunk)
-            chunk_str = ",".join(map(str, chunk))
+        for chunk in chunked(sorted(bgg_ids), self.game_request_batch_size):
             url = self.api_url(
                 action="thing",
-                id=chunk_str,
+                id=",".join(map(str, chunk)),
                 type="boardgame",
                 videos="1",
                 stats="1" if page == 1 else None,
@@ -168,15 +166,17 @@ class BggSpider(SitemapSpider):
         """
 
         response = cast(TextResponse, response)
-        request = cast(Request, response.request)
 
         page, max_page = extract_page_number(response, self.request_page_size)
         bgg_ids = cast(Iterable[int], response.meta.get("bgg_ids") or ())
-        if page < max_page:
+
+        # Scrape next page if we haven't reached the last one yet
+        # and this response contains any comments
+        if page < max_page and response.xpath("/items/item/comments/comment"):
             yield from self.game_requests(
                 bgg_ids=bgg_ids,
                 page=page + 1,
-                priority=request.priority + 1,
+                priority=-1,
                 max_page=max_page,
             )
 
