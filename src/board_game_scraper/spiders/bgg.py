@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import re
 import warnings
 from collections.abc import Iterable
@@ -102,7 +103,7 @@ class BggSpider(SitemapSpider):
             else:
                 yield request
 
-        yield from self.game_requests(bgg_ids)
+        yield from self.game_requests(bgg_ids, priority=-1)
 
     def game_requests(
         self,
@@ -176,7 +177,7 @@ class BggSpider(SitemapSpider):
             yield from self.game_requests(
                 bgg_ids=bgg_ids,
                 page=page + 1,
-                priority=-1,
+                priority=-page - 1,
                 max_page=max_page,
             )
 
@@ -383,11 +384,16 @@ def extract_page_number(
         page = 1
 
     max_page_from_meta = parse_int(response.meta.get("max_page"))
-    total_items = filter(
-        None,
-        map(parse_int, response.xpath("/items/item/comments/@totalitems").getall()),
+    total_items = max(
+        filter(
+            None,
+            map(parse_int, response.xpath("/items/item/comments/@totalitems").getall()),
+        ),
+        default=0,
     )
-    max_page_from_response = max(total_items, default=0) // request_page_size
+    max_page_from_response = (
+        int(math.ceil(total_items / request_page_size)) if total_items else None
+    )
 
     if max_page_from_meta:
         if max_page_from_response and max_page_from_meta != max_page_from_response:
