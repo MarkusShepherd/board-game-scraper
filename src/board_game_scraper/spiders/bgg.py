@@ -8,6 +8,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlencode
 
+from attrs.converters import to_bool
 from more_itertools import chunked
 from scrapy.http import Request, TextResponse
 from scrapy.selector.unified import Selector, SelectorList
@@ -24,36 +25,6 @@ if TYPE_CHECKING:
     from scrapy.http import Response
 
 LOGGER = logging.getLogger(__name__)
-
-
-def _value_id(
-    items: Selector | SelectorList | Iterable[Selector],
-    sep: str = ":",
-) -> Generator[str, None, None]:
-    for item in arg_to_iter(items):
-        item = cast(Selector, item)
-        value = item.xpath("@value").get() or ""
-        id_ = item.xpath("@id").get() or ""
-        yield f"{value}{sep}{id_}" if id_ else value
-
-
-def _remove_rank(value: str | None) -> str | None:
-    return (
-        value[:-5]
-        if isinstance(value, str) and value.lower().endswith(" rank")
-        else value
-    )
-
-
-def _value_id_rank(
-    items: Selector | SelectorList | Iterable[Selector],
-    sep: str = ":",
-) -> Generator[str, None, None]:
-    for item in arg_to_iter(items):
-        item = cast(Selector, item)
-        value = _remove_rank(item.xpath("@friendlyname").get()) or ""
-        id_ = item.xpath("@id").get() or ""
-        yield f"{value}{sep}{id_}" if id_ else value
 
 
 class BggSpider(SitemapSpider):
@@ -80,23 +51,23 @@ class BggSpider(SitemapSpider):
     sitemap_alternate_links = True
 
     custom_settings = {  # noqa: RUF012
-        "DOWNLOAD_DELAY": 2,
+        "DOWNLOAD_DELAY": 3,
     }
 
     def __init__(
         self,
         *,
-        scrape_ratings: bool = False,
-        scrape_collections: bool = False,
-        scrape_users: bool = False,
+        scrape_ratings: bool | int | str | None = False,
+        scrape_collections: bool | int | str | None = False,
+        scrape_users: bool | int | str | None = False,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
 
-        self.scrape_ratings = scrape_ratings
+        self.scrape_ratings = to_bool(scrape_ratings or False)  # type: ignore[arg-type]
         self.logger.info("Scrape ratings: %s", self.scrape_ratings)
 
-        self.scrape_collections = scrape_collections
+        self.scrape_collections = to_bool(scrape_collections or False)  # type: ignore[arg-type]
         if self.scrape_collections and not self.scrape_ratings:
             self.logger.warning(
                 "Found `scrape_collections` without `scrape_ratings`, "
@@ -105,7 +76,7 @@ class BggSpider(SitemapSpider):
             self.scrape_collections = False
         self.logger.info("Scrape collections: %s", self.scrape_collections)
 
-        self.scrape_users = scrape_users
+        self.scrape_users = to_bool(scrape_users or False)  # type: ignore[arg-type]
         if self.scrape_users and not self.scrape_ratings:
             self.logger.warning(
                 "Found `scrape_users` without `scrape_ratings`, "
@@ -169,6 +140,7 @@ class BggSpider(SitemapSpider):
                 stats="1" if page == 1 else None,
                 ratingcomments="1" if page == 1 else None,
                 page=str(page),
+                pagesize=str(self.request_page_size),
             )
 
             yield Request(
@@ -217,7 +189,6 @@ class BggSpider(SitemapSpider):
         )
 
     def api_url(self, action: str, **kwargs: str | None) -> str:
-        kwargs["pagesize"] = str(self.request_page_size)
         params = ((k, v) for k, v in kwargs.items() if k and v is not None)
         return f"{self.bgg_xml_api_url}/{action}?{urlencode(sorted(params))}"
 
@@ -333,15 +304,15 @@ class BggSpider(SitemapSpider):
 
         ldr.add_value(
             "designer",
-            _value_id(selector.xpath("link[@type = 'boardgamedesigner']")),
+            value_id(selector.xpath("link[@type = 'boardgamedesigner']")),
         )
         ldr.add_value(
             "artist",
-            _value_id(selector.xpath("link[@type = 'boardgameartist']")),
+            value_id(selector.xpath("link[@type = 'boardgameartist']")),
         )
         ldr.add_value(
             "publisher",
-            _value_id(selector.xpath("link[@type = 'boardgamepublisher']")),
+            value_id(selector.xpath("link[@type = 'boardgamepublisher']")),
         )
 
         bgg_id = ldr.get_output_value("bgg_id")
@@ -368,17 +339,17 @@ class BggSpider(SitemapSpider):
 
         ldr.add_value(
             "game_type",
-            _value_id_rank(
+            value_id_rank(
                 selector.xpath("statistics/ratings/ranks/rank[@type = 'family']"),
             ),
         )
         ldr.add_value(
             "category",
-            _value_id(selector.xpath("link[@type = 'boardgamecategory']")),
+            value_id(selector.xpath("link[@type = 'boardgamecategory']")),
         )
         ldr.add_value(
             "mechanic",
-            _value_id(selector.xpath("link[@type = 'boardgamemechanic']")),
+            value_id(selector.xpath("link[@type = 'boardgamemechanic']")),
         )
         # look for <link type="boardgamemechanic" id="2023" value="Co-operative Play" />
         ldr.add_value(
@@ -399,11 +370,11 @@ class BggSpider(SitemapSpider):
         )
         ldr.add_value(
             "family",
-            _value_id(selector.xpath("link[@type = 'boardgamefamily']")),
+            value_id(selector.xpath("link[@type = 'boardgamefamily']")),
         )
         ldr.add_value(
             "expansion",
-            _value_id(selector.xpath("link[@type = 'boardgameexpansion']")),
+            value_id(selector.xpath("link[@type = 'boardgameexpansion']")),
         )
         ldr.add_xpath(
             "implementation",
@@ -494,6 +465,36 @@ class BggSpider(SitemapSpider):
         ldr.add_xpath("updated_at", "status/@lastmodified")
 
         return cast(CollectionItem, ldr.load_item())
+
+
+def value_id(
+    items: Selector | SelectorList | Iterable[Selector],
+    sep: str = ":",
+) -> Generator[str, None, None]:
+    for item in arg_to_iter(items):
+        item = cast(Selector, item)
+        value = item.xpath("@value").get() or ""
+        id_ = item.xpath("@id").get() or ""
+        yield f"{value}{sep}{id_}" if id_ else value
+
+
+def remove_rank(value: str | None) -> str | None:
+    return (
+        value[:-5]
+        if isinstance(value, str) and value.lower().endswith(" rank")
+        else value
+    )
+
+
+def value_id_rank(
+    items: Selector | SelectorList | Iterable[Selector],
+    sep: str = ":",
+) -> Generator[str, None, None]:
+    for item in arg_to_iter(items):
+        item = cast(Selector, item)
+        value = remove_rank(item.xpath("@friendlyname").get()) or ""
+        id_ = item.xpath("@id").get() or ""
+        yield f"{value}{sep}{id_}" if id_ else value
 
 
 def extract_page_number(
