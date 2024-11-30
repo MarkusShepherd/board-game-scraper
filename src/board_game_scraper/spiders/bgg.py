@@ -63,7 +63,7 @@ class BggSpider(SitemapSpider):
     sitemap_alternate_links = True
 
     custom_settings = {  # noqa: RUF012
-        "DOWNLOAD_DELAY": 1,
+        "DOWNLOAD_DELAY": 2.0,
         "AUTOTHROTTLE_TARGET_CONCURRENCY": 4,
     }
 
