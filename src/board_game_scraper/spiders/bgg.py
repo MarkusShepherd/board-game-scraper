@@ -48,6 +48,9 @@ class BggSpider(SitemapSpider):
     scrape_collections = False
     scrape_users = False
 
+    game_files: tuple[Path, ...] = ()
+    user_files: tuple[Path, ...] = ()
+
     # Start URLs for sitemap crawling
     sitemap_urls = ("https://boardgamegeek.com/robots.txt",)
     # Recursively follow sitemapindex locs if they match any of these patterns
@@ -100,9 +103,30 @@ class BggSpider(SitemapSpider):
         self.user_files = parse_file_paths(user_files)
         self.logger.info("User and collection requests from files: %s", self.user_files)
 
-    def start_requests(self) -> Iterable[Request]:
-        # TODO: Add other ways to create game and user requests
-        return super().start_requests()
+    def start_requests(self) -> Generator[Request, None, None]:
+        yield from self.game_requests_from_files()
+        yield from self.user_and_collection_requests_from_files()
+        yield from super().start_requests()
+
+    def game_requests_from_files(self) -> Generator[Request, None, None]:
+        for game_file in self.game_files:
+            self.logger.debug("Reading game requests from file: %s", game_file)
+            bgg_ids = ()  # TODO: Read bgg_ids from file
+            yield from self.game_requests(bgg_ids=bgg_ids, page=1, priority=1)
+
+    def user_and_collection_requests_from_files(self) -> Generator[Request, None, None]:
+        for user_file in self.user_files:
+            self.logger.debug(
+                "Reading user and collection requests from file: %s",
+                user_file,
+            )
+            user_names: Iterable[str] = ()  # TODO: Read user_names from file
+            if self.scrape_collections:
+                for user_name in user_names:
+                    yield self.collection_request(user_name=user_name, priority=2)
+            if self.scrape_users:
+                for user_name in user_names:
+                    yield self.user_request(user_name=user_name, priority=3)
 
     def _get_sitemap_body(self, response: Response) -> bytes:
         sitemap_body = super()._get_sitemap_body(response)
