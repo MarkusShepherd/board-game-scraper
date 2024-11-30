@@ -66,6 +66,10 @@ class BggSpider(SitemapSpider):
     request_page_size = 100
     game_request_batch_size = 20
 
+    scrape_ratings = False
+    scrape_collections = False
+    scrape_users = False
+
     # Start URLs for sitemap crawling
     sitemap_urls = ("https://boardgamegeek.com/robots.txt",)
     # Recursively follow sitemapindex locs if they match any of these patterns
@@ -78,6 +82,25 @@ class BggSpider(SitemapSpider):
     custom_settings = {  # noqa: RUF012
         "DOWNLOAD_DELAY": 2,
     }
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+
+        self.logger.info("Scrape ratings: %s", self.scrape_ratings)
+        if self.scrape_collections and not self.scrape_ratings:
+            self.logger.warning(
+                "Found `scrape_collections` without `scrape_ratings`, "
+                "which will have no effect",
+            )
+            self.scrape_collections = False
+        self.logger.info("Scrape collections: %s", self.scrape_collections)
+        if self.scrape_users and not self.scrape_ratings:
+            self.logger.warning(
+                "Found `scrape_users` without `scrape_ratings`, "
+                "which will have no effect",
+            )
+            self.scrape_users = False
+        self.logger.info("Scrape users: %s", self.scrape_users)
 
     def start_requests(self) -> Iterable[Request]:
         # TODO: Add other ways to create game and user requests
@@ -204,7 +227,11 @@ class BggSpider(SitemapSpider):
 
         # Scrape next page if we haven't reached the last one yet
         # and this response contains any comments
-        if page < max_page and response.xpath("/items/item/comments/comment"):
+        if (
+            self.scrape_ratings
+            and page < max_page
+            and response.xpath("/items/item/comments/comment")
+        ):
             yield from self.game_requests(
                 bgg_ids=bgg_ids,
                 page=page + 1,
@@ -228,18 +255,29 @@ class BggSpider(SitemapSpider):
                 game_item = self.extract_game_item(response=response, game=game)
                 yield game_item
 
+            if not self.scrape_ratings:
+                continue
+
             for comment in game.xpath("comments/comment"):
                 collection_item = self.extract_collection_item(
                     response=response,
                     comment=comment,
                     bgg_id=bgg_id,
                 )
-                yield collection_item
-                if collection_item.bgg_user_name:
+
+                if not collection_item.bgg_user_name:
+                    self.logger.warning("Skipping item without bgg_user_name")
+                    continue
+
+                if self.scrape_collections:
                     yield self.collection_request(
                         user_name=collection_item.bgg_user_name,
-                        priority=1,
                     )
+                else:
+                    yield collection_item
+
+                if self.scrape_users:
+                    pass  # TODO: yield self.user_request()
 
     def extract_game_item(self, *, response: TextResponse, game: Selector) -> GameItem:
         ldr = BggGameLoader(response=response, selector=game)
@@ -390,7 +428,7 @@ class BggSpider(SitemapSpider):
         bgg_user_name: str,
     ) -> Generator[CollectionItem, None, None]:
         bgg_user_name = bgg_user_name.lower()
-        self.logger.info(
+        self.logger.debug(
             "Parsing collection for user <%s> from <%s>",
             bgg_user_name,
             response.url,
