@@ -469,13 +469,13 @@ class BggSpider(SitemapSpider):
         ldr.add_xpath("bayes_rating", "statistics/ratings/bayesaverage/@value")
         ldr.add_xpath("complexity", "statistics/ratings/averageweight/@value")
         # TODO: language_dependency
-        # TODO:
-        # <owned value="8241" />
-        # <trading value="276" />
-        # <wanting value="494" />
-        # <wishing value="2171" />
-        # <numcomments value="2133" />
-        # <numweights value="790" />
+
+        ldr.add_xpath("num_owned", "statistics/ratings/owned/@value")
+        ldr.add_xpath("num_trading", "statistics/ratings/trading/@value")
+        ldr.add_xpath("num_wanting", "statistics/ratings/wanting/@value")
+        ldr.add_xpath("num_wishing", "statistics/ratings/wishing/@value")
+        ldr.add_xpath("num_comments", "statistics/ratings/numcomments/@value")
+        ldr.add_xpath("num_weights", "statistics/ratings/numweights/@value")
 
         for rank in selector.xpath("statistics/ratings/ranks/rank[@type = 'family']"):
             ranking_item = self.extract_ranking_item(response=response, selector=rank)

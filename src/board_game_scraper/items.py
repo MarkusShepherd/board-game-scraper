@@ -70,6 +70,13 @@ class GameItem:
     complexity: float | None = None
     language_dependency: float | None = None
 
+    num_owned: int | None = None
+    num_trading: int | None = None
+    num_wanting: int | None = None
+    num_wishing: int | None = None
+    num_comments: int | None = None
+    num_weights: int | None = None
+
     bgg_id: int | None = None
     freebase_id: str | None = None
     wikidata_id: str | None = None

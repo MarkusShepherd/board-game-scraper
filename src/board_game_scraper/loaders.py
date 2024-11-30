@@ -85,9 +85,15 @@ class GameLoader(ItemLoader):
     avg_rating_in = MapCompose(parse_float)
     stddev_rating_in = MapCompose(parse_float)
     bayes_rating_in = MapCompose(parse_float)
-
     complexity_in = MapCompose(parse_float)
     language_dependency_in = MapCompose(parse_float)
+
+    num_owned_in = MapCompose(parse_int)
+    num_trading_in = MapCompose(parse_int)
+    num_wanting_in = MapCompose(parse_int)
+    num_wishing_in = MapCompose(parse_int)
+    num_comments_in = MapCompose(parse_int)
+    num_weights_in = MapCompose(parse_int)
 
     bgg_id_in = MapCompose(parse_int)
     luding_id_in = MapCompose(parse_int)
