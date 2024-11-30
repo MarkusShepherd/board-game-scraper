@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 import logging
 import math
 import re
 import warnings
 from collections.abc import Iterable
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlencode
 
@@ -66,6 +68,8 @@ class BggSpider(SitemapSpider):
         scrape_ratings: bool | int | str | None = False,
         scrape_collections: bool | int | str | None = False,
         scrape_users: bool | int | str | None = False,
+        game_files: Iterable[Path | str] | str | None = None,
+        user_files: Iterable[Path | str] | str | None = None,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -90,6 +94,11 @@ class BggSpider(SitemapSpider):
             )
             self.scrape_users = False
         self.logger.info("Scrape users: %s", self.scrape_users)
+
+        self.game_files = parse_file_paths(game_files)
+        self.logger.info("Game requests from files: %s", self.game_files)
+        self.user_files = parse_file_paths(user_files)
+        self.logger.info("User and collection requests from files: %s", self.user_files)
 
     def start_requests(self) -> Iterable[Request]:
         # TODO: Add other ways to create game and user requests
@@ -529,6 +538,25 @@ class BggSpider(SitemapSpider):
         ldr.add_xpath("image_url", "avatarlink/@value")
 
         return cast(UserItem, ldr.load_item())
+
+
+def parse_file_paths(paths: Iterable[Path | str] | str | None) -> tuple[Path, ...]:
+    if paths is None:
+        return ()
+
+    if isinstance(paths, str):
+        try:
+            paths_json = json.loads(paths)
+        except json.JSONDecodeError:
+            LOGGER.exception("Failed to parse paths as JSON: %s", paths)
+            raise
+        if not isinstance(paths_json, list):
+            LOGGER.error("Expected a list of paths: %s", paths)
+            msg = "Expected a list"
+            raise TypeError(msg)
+        paths = paths_json
+
+    return tuple(Path(path).resolve() for path in paths)
 
 
 def value_id(
