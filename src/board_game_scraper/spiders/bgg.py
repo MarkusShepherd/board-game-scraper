@@ -111,10 +111,17 @@ class BggSpider(SitemapSpider):
         yield from super().start_requests()
 
     def game_requests_from_files(self) -> Generator[Request, None, None]:
-        bgg_ids = extract_field_from_files(
-            file_paths=self.game_files,
-            field="bgg_id",
-            converter=parse_int,
+        bgg_ids = frozenset(
+            extract_field_from_files(
+                file_paths=self.game_files,
+                field="bgg_id",
+                converter=parse_int,
+            ),
+        )
+        self.logger.info(
+            "Loaded %d BGG ID(s) from %d file(s) to request",
+            len(bgg_ids),
+            len(self.game_files),
         )
         yield from self.game_requests(bgg_ids=bgg_ids, page=1, priority=1)
 
@@ -124,6 +131,11 @@ class BggSpider(SitemapSpider):
                 file_paths=self.user_files,
                 field="bgg_user_name",
             ),
+        )
+        self.logger.info(
+            "Loaded %d BGG user name(s) from %d file(s) to request",
+            len(user_names),
+            len(self.user_files),
         )
         if self.scrape_collections:
             for user_name in user_names:
