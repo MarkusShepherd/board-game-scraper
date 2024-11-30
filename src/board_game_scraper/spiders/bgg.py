@@ -193,7 +193,7 @@ class BggSpider(SitemapSpider):
         """
         @url https://boardgamegeek.com/xmlapi2/thing?id=13,822,36218&type=boardgame&ratingcomments=1&stats=1&videos=1&pagesize=100
         @returns items 303 303
-        @returns requests 0 0
+        @returns requests 300 300
         @scrapes bgg_id scraped_at
         """
 
@@ -229,11 +229,17 @@ class BggSpider(SitemapSpider):
                 yield game_item
 
             for comment in game.xpath("comments/comment"):
-                yield self.extract_collection_item(
+                collection_item = self.extract_collection_item(
                     response=response,
                     comment=comment,
                     bgg_id=bgg_id,
                 )
+                yield collection_item
+                if collection_item.bgg_user_name:
+                    yield self.collection_request(
+                        user_name=collection_item.bgg_user_name,
+                        priority=1,
+                    )
 
     def extract_game_item(self, *, response: TextResponse, game: Selector) -> GameItem:
         ldr = BggGameLoader(response=response, selector=game)
@@ -383,6 +389,12 @@ class BggSpider(SitemapSpider):
         response: Response,
         bgg_user_name: str,
     ) -> Generator[CollectionItem, None, None]:
+        bgg_user_name = bgg_user_name.lower()
+        self.logger.info(
+            "Parsing collection for user <%s> from <%s>",
+            bgg_user_name,
+            response.url,
+        )
         yield from ()
 
 
