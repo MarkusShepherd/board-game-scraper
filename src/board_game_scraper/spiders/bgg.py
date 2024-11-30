@@ -15,8 +15,13 @@ from scrapy.selector.unified import Selector, SelectorList
 from scrapy.spiders import SitemapSpider
 from scrapy.utils.misc import arg_to_iter
 
-from board_game_scraper.items import CollectionItem, GameItem, RankingItem
-from board_game_scraper.loaders import BggGameLoader, CollectionLoader, RankingLoader
+from board_game_scraper.items import CollectionItem, GameItem, RankingItem, UserItem
+from board_game_scraper.loaders import (
+    BggGameLoader,
+    CollectionLoader,
+    RankingLoader,
+    UserLoader,
+)
 from board_game_scraper.utils.parsers import parse_int
 
 if TYPE_CHECKING:
@@ -188,6 +193,23 @@ class BggSpider(SitemapSpider):
             meta=kwargs,
         )
 
+    def user_request(
+        self,
+        *,
+        user_name: str,
+        priority: int = 0,
+        **kwargs: Any,
+    ) -> Request:
+        user_name = user_name.lower()
+        url = self.api_url(action="user", name=user_name)
+        return Request(
+            url=url,
+            callback=self.parse_user,  # type: ignore[arg-type]
+            cb_kwargs={"bgg_user_name": user_name},
+            priority=priority,
+            meta=kwargs,
+        )
+
     def api_url(self, action: str, **kwargs: str | None) -> str:
         params = ((k, v) for k, v in kwargs.items() if k and v is not None)
         return f"{self.bgg_xml_api_url}/{action}?{urlencode(sorted(params))}"
@@ -257,7 +279,10 @@ class BggSpider(SitemapSpider):
                     yield collection_item
 
                 if self.scrape_users:
-                    pass  # TODO: yield self.user_request()
+                    yield self.user_request(
+                        user_name=collection_item.bgg_user_name,
+                        priority=1,
+                    )
 
     def parse_collection(
         self,
@@ -287,6 +312,17 @@ class BggSpider(SitemapSpider):
             )
             if collection_item:
                 yield collection_item
+
+    def parse_user(
+        self,
+        response: TextResponse,
+        bgg_user_name: str | None = None,
+    ) -> UserItem:
+        return self.extract_user_item(
+            response=response,
+            selector=cast(Selector, response.xpath("/user")[0]),
+            bgg_user_name=bgg_user_name,
+        )
 
     def extract_game_item(
         self,
@@ -465,6 +501,33 @@ class BggSpider(SitemapSpider):
         ldr.add_xpath("updated_at", "status/@lastmodified")
 
         return cast(CollectionItem, ldr.load_item())
+
+    def extract_user_item(
+        self,
+        *,
+        response: TextResponse,
+        selector: Selector,
+        bgg_user_name: str | None = None,
+    ) -> UserItem:
+        ldr = UserLoader(response=response, selector=selector)
+
+        ldr.add_xpath("item_id", "@id")
+
+        ldr.add_value("bgg_user_name", bgg_user_name)
+        ldr.add_xpath("bgg_user_name", "@name")
+        ldr.add_xpath("first_name", "firstname/@value")
+        ldr.add_xpath("last_name", "lastname/@value")
+
+        ldr.add_xpath("registered", "yearregistered/@value")
+        ldr.add_xpath("last_login", "lastlogin/@value")
+
+        ldr.add_xpath("country", "country/@value")
+        ldr.add_xpath("region", "stateorprovince/@value")
+
+        ldr.add_xpath("external_link", "webaddress/@value")
+        ldr.add_xpath("image_url", "avatarlink/@value")
+
+        return cast(UserItem, ldr.load_item())
 
 
 def value_id(
