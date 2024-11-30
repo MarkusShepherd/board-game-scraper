@@ -4,7 +4,7 @@ import csv
 import json
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import yaml
 from scrapy.utils.misc import arg_to_iter
@@ -13,7 +13,7 @@ from board_game_scraper.utils.dates import now
 from board_game_scraper.utils.parsers import parse_date
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Iterable
+    from collections.abc import Callable, Generator, Iterable
     from datetime import datetime
 
 LOGGER = logging.getLogger(__name__)
@@ -87,6 +87,25 @@ def extract_field_from_files(
             )
         else:
             LOGGER.warning("Skipping unsupported file <%s>", file_path)
+
+
+def parse_file_paths(paths: Iterable[Path | str] | str | None) -> tuple[Path, ...]:
+    if paths is None:
+        return ()
+
+    if isinstance(paths, str):
+        try:
+            paths_json = json.loads(paths)
+        except json.JSONDecodeError:
+            LOGGER.exception("Failed to parse paths as JSON: %s", paths)
+            raise
+        if not isinstance(paths_json, list):
+            LOGGER.error("Expected a list of paths: %s", paths)
+            msg = "Expected a list"
+            raise TypeError(msg)
+        paths = paths_json
+
+    return tuple(Path(path).resolve() for path in paths)
 
 
 def _load_yaml(
