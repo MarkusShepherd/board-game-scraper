@@ -26,6 +26,7 @@ def extract_field_from_jsonlines_file(
     encoding: str = "utf-8",
     converter: Callable[[Any], Any] | None = None,
 ) -> Generator[Any, None, None]:
+    LOGGER.info("Extracting field <%s> from JSON lines file <%s>", field, file_path)
     with file_path.open(mode="r", encoding=encoding) as file:
         for line in file:
             try:
@@ -47,6 +48,7 @@ def extract_field_from_csv_file(
     encoding: str = "utf-8",
     converter: Callable[[Any], Any] | None = None,
 ) -> Generator[Any, None, None]:
+    LOGGER.info("Extracting field <%s> from CSV file <%s>", field, file_path)
     with file_path.open(mode="r", encoding=encoding) as file:
         reader = csv.DictReader(file)
         for row in reader:
@@ -55,6 +57,36 @@ def extract_field_from_csv_file(
                 value = converter(value)
             if value is not None:
                 yield value
+
+
+def extract_field_from_files(
+    *,
+    file_paths: str | Path | Iterable[str | Path],
+    field: str,
+    encoding: str = "utf-8",
+    converter: Callable[[Any], Any] | None = None,
+) -> Generator[Any, None, None]:
+    for file_path_str in arg_to_iter(file_paths):
+        file_path = Path(file_path_str).resolve()
+        if not file_path.exists():
+            LOGGER.warning("Skipping non-existing file <%s>", file_path)
+            continue
+        if file_path.suffix in (".jl", ".jsonl", ".jsonlines", ".ndjson"):
+            yield from extract_field_from_jsonlines_file(
+                file_path=file_path,
+                field=field,
+                encoding=encoding,
+                converter=converter,
+            )
+        elif file_path.suffix == ".csv":
+            yield from extract_field_from_csv_file(
+                file_path=file_path,
+                field=field,
+                encoding=encoding,
+                converter=converter,
+            )
+        else:
+            LOGGER.warning("Skipping unsupported file <%s>", file_path)
 
 
 def _load_yaml(

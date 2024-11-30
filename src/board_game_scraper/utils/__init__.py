@@ -1,6 +1,7 @@
 from board_game_scraper.utils.dates import now
 from board_game_scraper.utils.files import (
     extract_field_from_csv_file,
+    extract_field_from_files,
     extract_field_from_jsonlines_file,
     load_premium_users,
 )
@@ -9,6 +10,7 @@ from board_game_scraper.utils.strings import lower_or_none, normalize_space, to_
 
 __all__ = [
     "extract_field_from_csv_file",
+    "extract_field_from_files",
     "extract_field_from_jsonlines_file",
     "load_premium_users",
     "lower_or_none",
