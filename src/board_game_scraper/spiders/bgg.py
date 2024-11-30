@@ -83,10 +83,20 @@ class BggSpider(SitemapSpider):
         "DOWNLOAD_DELAY": 2,
     }
 
-    def __init__(self, *args: Any, **kwargs: Any):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        *,
+        scrape_ratings: bool = False,
+        scrape_collections: bool = False,
+        scrape_users: bool = False,
+        **kwargs: Any,
+    ):
+        super().__init__(**kwargs)
 
+        self.scrape_ratings = scrape_ratings
         self.logger.info("Scrape ratings: %s", self.scrape_ratings)
+
+        self.scrape_collections = scrape_collections
         if self.scrape_collections and not self.scrape_ratings:
             self.logger.warning(
                 "Found `scrape_collections` without `scrape_ratings`, "
@@ -94,6 +104,8 @@ class BggSpider(SitemapSpider):
             )
             self.scrape_collections = False
         self.logger.info("Scrape collections: %s", self.scrape_collections)
+
+        self.scrape_users = scrape_users
         if self.scrape_users and not self.scrape_ratings:
             self.logger.warning(
                 "Found `scrape_users` without `scrape_ratings`, "
