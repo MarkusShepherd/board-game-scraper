@@ -3,6 +3,7 @@ from __future__ import annotations
 from functools import partial
 from typing import Any
 
+from attrs.converters import to_bool
 from itemloaders.processors import Identity, MapCompose, TakeFirst
 from scrapy.http import Response
 from scrapy.loader import ItemLoader
@@ -151,6 +152,13 @@ class CollectionLoader(ItemLoader):
     bgg_id_in = MapCompose(parse_int)
 
     bgg_user_rating_in = MapCompose(parse_float)
+    bgg_user_owned_in = MapCompose(to_bool)
+    bgg_user_prev_owned_in = MapCompose(to_bool)
+    bgg_user_for_trade_in = MapCompose(to_bool)
+    bgg_user_want_in_trade_in = MapCompose(to_bool)
+    bgg_user_want_to_play_in = MapCompose(to_bool)
+    bgg_user_want_to_buy_in = MapCompose(to_bool)
+    bgg_user_preordered_in = MapCompose(to_bool)
     bgg_user_wishlist_in = MapCompose(parse_int)
     bgg_user_play_count_in = MapCompose(parse_int)
 

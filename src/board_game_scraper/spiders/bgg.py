@@ -223,7 +223,7 @@ class BggSpider(SitemapSpider):
 
     def parse_games(
         self,
-        response: Response,
+        response: TextResponse,
     ) -> Generator[Request | GameItem | CollectionItem, None, None]:
         """
         @url https://boardgamegeek.com/xmlapi2/thing?id=13,822,36218&type=boardgame&ratingcomments=1&stats=1&videos=1&pagesize=100
@@ -231,8 +231,6 @@ class BggSpider(SitemapSpider):
         @returns requests 300 300
         @scrapes bgg_id scraped_at
         """
-
-        response = cast(TextResponse, response)
 
         page, max_page = extract_page_number(response, self.request_page_size)
         bgg_ids = cast(Iterable[int], response.meta.get("bgg_ids") or ())
@@ -264,8 +262,7 @@ class BggSpider(SitemapSpider):
                 continue
 
             if page == 1:
-                game_item = self.extract_game_item(response=response, game=game)
-                yield game_item
+                yield self.extract_game_item(response=response, selector=game)
 
             if not self.scrape_ratings:
                 continue
@@ -273,11 +270,11 @@ class BggSpider(SitemapSpider):
             for comment in game.xpath("comments/comment"):
                 collection_item = self.extract_collection_item(
                     response=response,
-                    comment=comment,
+                    selector=comment,
                     bgg_id=bgg_id,
                 )
 
-                if not collection_item.bgg_user_name:
+                if not collection_item or not collection_item.bgg_user_name:
                     self.logger.warning("Skipping item without bgg_user_name")
                     continue
 
@@ -291,8 +288,42 @@ class BggSpider(SitemapSpider):
                 if self.scrape_users:
                     pass  # TODO: yield self.user_request()
 
-    def extract_game_item(self, *, response: TextResponse, game: Selector) -> GameItem:
-        ldr = BggGameLoader(response=response, selector=game)
+    def parse_collection(
+        self,
+        response: TextResponse,
+        bgg_user_name: str,
+    ) -> Generator[Request | CollectionItem, None, None]:
+        bgg_user_name = bgg_user_name.lower()
+        self.logger.debug(
+            "Parsing collection for user <%s> from <%s>",
+            bgg_user_name,
+            response.url,
+        )
+
+        games = response.xpath("/items/item")
+        bgg_ids = map(parse_int, games.xpath("@objectid").getall())
+        yield from self.game_requests(
+            bgg_ids=filter(None, bgg_ids),
+            page=1,
+            priority=-1,
+        )
+
+        for game in games:
+            collection_item = self.extract_collection_item(
+                response=response,
+                selector=cast(Selector, game),
+                bgg_user_name=bgg_user_name,
+            )
+            if collection_item:
+                yield collection_item
+
+    def extract_game_item(
+        self,
+        *,
+        response: TextResponse,
+        selector: Selector,
+    ) -> GameItem:
+        ldr = BggGameLoader(response=response, selector=selector)
 
         ldr.add_xpath("bgg_id", "@id")
         ldr.add_xpath("name", "name[@type = 'primary']/@value")
@@ -302,15 +333,15 @@ class BggSpider(SitemapSpider):
 
         ldr.add_value(
             "designer",
-            _value_id(game.xpath("link[@type = 'boardgamedesigner']")),
+            _value_id(selector.xpath("link[@type = 'boardgamedesigner']")),
         )
         ldr.add_value(
             "artist",
-            _value_id(game.xpath("link[@type = 'boardgameartist']")),
+            _value_id(selector.xpath("link[@type = 'boardgameartist']")),
         )
         ldr.add_value(
             "publisher",
-            _value_id(game.xpath("link[@type = 'boardgamepublisher']")),
+            _value_id(selector.xpath("link[@type = 'boardgamepublisher']")),
         )
 
         bgg_id = ldr.get_output_value("bgg_id")
@@ -338,26 +369,26 @@ class BggSpider(SitemapSpider):
         ldr.add_value(
             "game_type",
             _value_id_rank(
-                game.xpath("statistics/ratings/ranks/rank[@type = 'family']"),
+                selector.xpath("statistics/ratings/ranks/rank[@type = 'family']"),
             ),
         )
         ldr.add_value(
             "category",
-            _value_id(game.xpath("link[@type = 'boardgamecategory']")),
+            _value_id(selector.xpath("link[@type = 'boardgamecategory']")),
         )
         ldr.add_value(
             "mechanic",
-            _value_id(game.xpath("link[@type = 'boardgamemechanic']")),
+            _value_id(selector.xpath("link[@type = 'boardgamemechanic']")),
         )
         # look for <link type="boardgamemechanic" id="2023" value="Co-operative Play" />
         ldr.add_value(
             "cooperative",
-            bool(game.xpath("link[@type = 'boardgamemechanic' and @id = '2023']")),
+            bool(selector.xpath("link[@type = 'boardgamemechanic' and @id = '2023']")),
         )
         ldr.add_value(
             "compilation",
             bool(
-                game.xpath(
+                selector.xpath(
                     "link[@type = 'boardgamecompilation' and @inbound = 'true']",
                 ),
             ),
@@ -368,11 +399,11 @@ class BggSpider(SitemapSpider):
         )
         ldr.add_value(
             "family",
-            _value_id(game.xpath("link[@type = 'boardgamefamily']")),
+            _value_id(selector.xpath("link[@type = 'boardgamefamily']")),
         )
         ldr.add_value(
             "expansion",
-            _value_id(game.xpath("link[@type = 'boardgameexpansion']")),
+            _value_id(selector.xpath("link[@type = 'boardgameexpansion']")),
         )
         ldr.add_xpath(
             "implementation",
@@ -401,8 +432,8 @@ class BggSpider(SitemapSpider):
         # <numcomments value="2133" />
         # <numweights value="790" />
 
-        for rank in game.xpath("statistics/ratings/ranks/rank[@type = 'family']"):
-            ranking_item = self.extract_ranking_item(response=response, rank=rank)
+        for rank in selector.xpath("statistics/ratings/ranks/rank[@type = 'family']"):
+            ranking_item = self.extract_ranking_item(response=response, selector=rank)
             ldr.add_value("add_rank", ranking_item)
 
         return cast(GameItem, ldr.load_item())
@@ -411,9 +442,9 @@ class BggSpider(SitemapSpider):
         self,
         *,
         response: TextResponse,
-        rank: Selector,
+        selector: Selector,
     ) -> RankingItem:
-        ldr = RankingLoader(response=response, selector=rank)
+        ldr = RankingLoader(response=response, selector=selector)
         ldr.add_xpath("ranking_type", "@name")
         ldr.add_xpath("ranking_id", "@id")
         ldr.add_xpath("rank", "@value")
@@ -424,28 +455,45 @@ class BggSpider(SitemapSpider):
         self,
         *,
         response: TextResponse,
-        comment: Selector,
-        bgg_id: int,
-    ) -> CollectionItem:
-        ldr = CollectionLoader(response=response, selector=comment)
-        ldr.add_value("bgg_id", bgg_id)
-        ldr.add_xpath("bgg_user_name", "@username")
-        ldr.add_xpath("bgg_user_rating", "@rating")
-        ldr.add_xpath("comment", "@value")
-        return cast(CollectionItem, ldr.load_item())
+        selector: Selector,
+        bgg_id: int | None = None,
+        bgg_user_name: str | None = None,
+    ) -> CollectionItem | None:
+        ldr = CollectionLoader(response=response, selector=selector)
 
-    def parse_collection(
-        self,
-        response: Response,
-        bgg_user_name: str,
-    ) -> Generator[CollectionItem, None, None]:
-        bgg_user_name = bgg_user_name.lower()
-        self.logger.debug(
-            "Parsing collection for user <%s> from <%s>",
-            bgg_user_name,
-            response.url,
-        )
-        yield from ()
+        ldr.add_value("bgg_id", bgg_id)
+        ldr.add_xpath("bgg_id", "@objectid")
+        bgg_id = ldr.get_output_value("bgg_id")
+
+        ldr.add_value("bgg_user_name", bgg_user_name)
+        ldr.add_xpath("bgg_user_name", "@username")
+        bgg_user_name = ldr.get_output_value("bgg_user_name")
+
+        if not bgg_id or not bgg_user_name:
+            self.logger.warning("Skipping item without bgg_id or bgg_user_name")
+            return None
+
+        ldr.add_xpath("item_id", "@collid")
+        ldr.add_value("item_id", f"{bgg_user_name.lower()}:{bgg_id}")
+
+        ldr.add_xpath("bgg_user_rating", "@rating")
+        ldr.add_xpath("bgg_user_rating", "stats/rating/@value")
+        ldr.add_xpath("bgg_user_owned", "status/@own")
+        ldr.add_xpath("bgg_user_prev_owned", "status/@prevowned")
+        ldr.add_xpath("bgg_user_for_trade", "status/@fortrade")
+        ldr.add_xpath("bgg_user_want_in_trade", "status/@want")
+        ldr.add_xpath("bgg_user_want_to_play", "status/@wanttoplay")
+        ldr.add_xpath("bgg_user_want_to_buy", "status/@wanttobuy")
+        ldr.add_xpath("bgg_user_preordered", "status/@preordered")
+        ldr.add_xpath("bgg_user_wishlist", "status[@wishlist = '1']/@wishlistpriority")
+        ldr.add_xpath("bgg_user_play_count", "numplays/text()")
+
+        ldr.add_xpath("comment", "@value")
+        ldr.add_xpath("comment", "comment/text()")
+
+        ldr.add_xpath("updated_at", "status/@lastmodified")
+
+        return cast(CollectionItem, ldr.load_item())
 
 
 def extract_page_number(
