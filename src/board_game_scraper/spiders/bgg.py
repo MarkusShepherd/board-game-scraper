@@ -618,6 +618,7 @@ class BggSpider(SitemapSpider):
         ]
         best = [vote[0] for vote in votes if self.filter_votes(*vote[1:], best=True)]
 
+        # TODO: Save complete results for all player counts
         return (
             min(recommended, default=min_players),
             max(recommended, default=max_players),
