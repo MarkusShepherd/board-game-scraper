@@ -5,8 +5,9 @@ import math
 import re
 import warnings
 from collections.abc import Iterable
+from itertools import repeat
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 from urllib.parse import urlencode
 
 from attrs.converters import to_bool
@@ -29,17 +30,19 @@ from board_game_scraper.utils.files import (
     parse_file_paths,
 )
 from board_game_scraper.utils.parsers import parse_int
-from board_game_scraper.utils.strings import lower_or_none
+from board_game_scraper.utils.strings import lower_or_none, normalize_space
 from board_game_scraper.utils.urls import extract_query_param
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+    from typing import Any
 
     from scrapy.http import Response
     from scrapy.selector.unified import SelectorList
 
 
 LOGGER = logging.getLogger(__name__)
+DIGITS_REGEX = re.compile(r"^\D*(\d+).*$")
 
 
 class BggSpider(SitemapSpider):
@@ -55,6 +58,7 @@ class BggSpider(SitemapSpider):
     scrape_ratings = False
     scrape_collections = False
     scrape_users = False
+    min_votes: int = 0
 
     game_files: tuple[Path, ...] = ()
     user_files: tuple[Path, ...] = ()
@@ -80,6 +84,7 @@ class BggSpider(SitemapSpider):
         scrape_ratings: bool | int | str | None = False,
         scrape_collections: bool | int | str | None = False,
         scrape_users: bool | int | str | None = False,
+        min_votes: int | str | None = 0,
         game_files: Iterable[Path | str] | str | None = None,
         user_files: Iterable[Path | str] | str | None = None,
         premium_users_dir: Path | str | None = None,
@@ -107,6 +112,9 @@ class BggSpider(SitemapSpider):
             )
             self.scrape_users = False
         self.logger.info("Scrape users: %s", self.scrape_users)
+
+        self.min_votes = parse_int(min_votes) or 0
+        self.logger.info("Minimum votes: %d", self.min_votes)
 
         self.game_files = parse_file_paths(game_files)
         self.logger.info("Game requests from files: %s", self.game_files)
@@ -477,9 +485,19 @@ class BggSpider(SitemapSpider):
         ldr.add_xpath("image_url", ("image/text()", "thumbnail/text()"))
         ldr.add_xpath("video_url", "videos/video/@link")
 
+        (
+            min_players_rec,
+            max_players_rec,
+            min_players_best,
+            max_players_best,
+        ) = self.player_count_votes(selector)
+
         ldr.add_xpath("min_players", "minplayers/@value")
         ldr.add_xpath("max_players", "maxplayers/@value")
-        # TODO: min_players_rec, max_players_rec, min_players_best, max_players_best
+        ldr.add_value("min_players_rec", min_players_rec)
+        ldr.add_value("max_players_rec", max_players_rec)
+        ldr.add_value("min_players_best", min_players_best)
+        ldr.add_value("max_players_best", max_players_best)
 
         ldr.add_xpath("min_age", "minage/@value")
         ldr.add_xpath("max_age", "maxage/@value")
@@ -566,6 +584,49 @@ class BggSpider(SitemapSpider):
 
         return cast(GameItem, ldr.load_item())
 
+    def player_count_votes(self, game: Selector) -> tuple[int, int, int, int]:
+        min_players = parse_int_from_elem(game, "minplayers/@value")
+        max_players = parse_int_from_elem(game, "maxplayers/@value")
+
+        polls = game.xpath("poll[@name = 'suggested_numplayers']")
+        poll = polls[0] if polls else None
+
+        if not poll or parse_int_from_elem(poll, "@totalvotes") < self.min_votes:
+            return min_players, max_players, min_players, max_players
+
+        votes = sorted(parse_player_count(poll))
+        recommended = [
+            vote[0] for vote in votes if self.filter_votes(*vote[1:], best=False)
+        ]
+        best = [vote[0] for vote in votes if self.filter_votes(*vote[1:], best=True)]
+
+        return (
+            min(recommended, default=min_players),
+            max(recommended, default=max_players),
+            min(best, default=min_players),
+            max(best, default=max_players),
+        )
+
+    def filter_votes(
+        self,
+        votes_best: int,
+        votes_rec: int,
+        votes_not: int,
+        *,
+        best: bool = False,
+    ) -> bool:
+        if votes_best + votes_rec + votes_not < self.min_votes / 2:
+            return False
+
+        votes_true = votes_best
+        votes_false = votes_not
+        if best:
+            votes_false += votes_rec
+        else:
+            votes_true += votes_rec
+
+        return votes_true > votes_false
+
     def extract_ranking_item(
         self,
         *,
@@ -651,36 +712,6 @@ class BggSpider(SitemapSpider):
         return cast(UserItem, ldr.load_item())
 
 
-def value_id(
-    items: Selector | SelectorList | Iterable[Selector],
-    sep: str = ":",
-) -> Generator[str, None, None]:
-    for item in arg_to_iter(items):
-        item = cast(Selector, item)
-        value = item.xpath("@value").get() or ""
-        id_ = item.xpath("@id").get() or ""
-        yield f"{value}{sep}{id_}" if id_ else value
-
-
-def remove_rank(value: str | None) -> str | None:
-    return (
-        value[:-5]
-        if isinstance(value, str) and value.lower().endswith(" rank")
-        else value
-    )
-
-
-def value_id_rank(
-    items: Selector | SelectorList | Iterable[Selector],
-    sep: str = ":",
-) -> Generator[str, None, None]:
-    for item in arg_to_iter(items):
-        item = cast(Selector, item)
-        value = remove_rank(item.xpath("@friendlyname").get()) or ""
-        id_ = item.xpath("@id").get() or ""
-        yield f"{value}{sep}{id_}" if id_ else value
-
-
 def extract_page_number(
     response: TextResponse,
     request_page_size: int,
@@ -744,3 +775,102 @@ def extract_page_number(
         max_page = page
 
     return page, max_page
+
+
+def value_id(
+    items: Selector | SelectorList | Iterable[Selector],
+    sep: str = ":",
+) -> Generator[str, None, None]:
+    for item in arg_to_iter(items):
+        item = cast(Selector, item)
+        value = item.xpath("@value").get() or ""
+        id_ = item.xpath("@id").get() or ""
+        yield f"{value}{sep}{id_}" if id_ else value
+
+
+def remove_rank(value: str | None) -> str | None:
+    return (
+        value[:-5]
+        if isinstance(value, str) and value.lower().endswith(" rank")
+        else value
+    )
+
+
+def value_id_rank(
+    items: Selector | SelectorList | Iterable[Selector],
+    sep: str = ":",
+) -> Generator[str, None, None]:
+    for item in arg_to_iter(items):
+        item = cast(Selector, item)
+        value = remove_rank(item.xpath("@friendlyname").get()) or ""
+        id_ = item.xpath("@id").get() or ""
+        yield f"{value}{sep}{id_}" if id_ else value
+
+
+def parse_int_from_elem(
+    element: Selector,
+    xpath: str,
+    *,
+    default: int = 0,
+    lenient: bool = False,
+) -> int:
+    if not element or not xpath:
+        return default
+
+    string = normalize_space(element.xpath(xpath).get())
+
+    if not string:
+        return default
+
+    result = parse_int(string)
+
+    if result is None and lenient:
+        match = DIGITS_REGEX.match(string)
+        result = parse_int(match.group(1)) if match else None
+
+    return result if result is not None else default
+
+
+def parse_player_count(
+    poll: Selector,
+) -> Generator[tuple[int, int, int, int], None, None]:
+    for result in poll.xpath("results"):
+        numplayers = normalize_space(result.xpath("@numplayers").get())
+        players = parse_int(numplayers)
+
+        if not players and numplayers.endswith("+"):
+            players = parse_int(numplayers[:-1]) or -1
+            players += 1
+
+        if not players:
+            continue
+
+        votes_best = parse_int_from_elem(
+            result,
+            "result[@value = 'Best']/@numvotes",
+        )
+        votes_rec = parse_int_from_elem(
+            result,
+            "result[@value = 'Recommended']/@numvotes",
+        )
+        votes_not = parse_int_from_elem(
+            result,
+            "result[@value = 'Not Recommended']/@numvotes",
+        )
+
+        yield players, votes_best, votes_rec, votes_not
+
+
+def parse_votes(
+    poll: Selector,
+    attr: str = "value",
+    *,
+    enum: bool = False,
+) -> Generator[int, None, None]:
+    if not poll:
+        return
+
+    for i, result in enumerate(poll.xpath("results/result"), start=1):
+        value = i if enum else parse_int_from_elem(result, "@" + attr, lenient=True)
+        numvotes = parse_int_from_elem(result, "@numvotes")
+        yield from repeat(value, numvotes)
