@@ -29,6 +29,7 @@ class GameItem:
     url: str | None = None
     official_url: list[str] | None = None
     image_url: list[str] | None = None
+    image_url_download: list[str] | None = None
     image_file: list[dict[str, str]] | None = None
     image_blurhash: list[dict[str, str]] | None = None
     video_url: list[str] | None = None
@@ -112,6 +113,7 @@ class RankingItem:
     bayes_rating: float | None = None
 
     image_url: list[str] | None = None
+    image_url_download: list[str] | None = None
     image_file: list[dict[str, str]] | None = None
     image_blurhash: list[dict[str, str]] | None = None
 
@@ -140,6 +142,7 @@ class UserItem:
 
     external_link: list[str] | None = None
     image_url: list[str] | None = None
+    image_url_download: list[str] | None = None
     image_file: list[dict[str, str]] | None = None
     image_blurhash: list[dict[str, str]] | None = None
 

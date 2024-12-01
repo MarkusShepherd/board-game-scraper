@@ -121,6 +121,7 @@ EXTENSIONS = {
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
+    "board_game_scraper.pipelines.LimitImagesPipeline": 500,
     "scrapy.pipelines.images.ImagesPipeline": 600,
     "scrapy_extensions.BlurHashPipeline": 700,
 }
@@ -175,6 +176,10 @@ IMAGES_URLS_FIELD = "image_url_download"
 IMAGES_RESULT_FIELD = "image_file"
 IMAGES_EXPIRES = 360
 # IMAGES_THUMBS = {"thumb": (1024, 1024)}
+
+# Limit images to download
+LIMIT_IMAGES_TO_DOWNLOAD = 0
+LIMIT_IMAGES_URLS_FIELD = "image_url"
 
 # BlurHash
 BLURHASH_FIELD = "image_blurhash"

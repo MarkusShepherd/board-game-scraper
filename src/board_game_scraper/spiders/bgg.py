@@ -77,6 +77,7 @@ class BggSpider(SitemapSpider):
     custom_settings = {  # noqa: RUF012
         "DOWNLOAD_DELAY": 2.0,
         "AUTOTHROTTLE_TARGET_CONCURRENCY": 4,
+        "LIMIT_IMAGES_TO_DOWNLOAD": 1,
     }
 
     def __init__(
