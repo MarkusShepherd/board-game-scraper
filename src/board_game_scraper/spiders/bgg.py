@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import math
 import re
+import statistics
 import warnings
 from collections.abc import Iterable
 from itertools import repeat
@@ -34,7 +35,7 @@ from board_game_scraper.utils.strings import lower_or_none, normalize_space
 from board_game_scraper.utils.urls import extract_query_param
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Callable, Generator
     from typing import Any
 
     from scrapy.http import Response
@@ -501,7 +502,15 @@ class BggSpider(SitemapSpider):
 
         ldr.add_xpath("min_age", "minage/@value")
         ldr.add_xpath("max_age", "maxage/@value")
-        # TODO: min_age_rec, max_age_rec
+        ldr.add_value(
+            "min_age_rec",
+            self.parse_poll(
+                selector,
+                "suggested_playerage",
+                func=statistics.median_grouped,
+            ),
+        )
+        ldr.add_xpath("min_age_rec", "minage/@value")
 
         ldr.add_xpath(
             "min_time",
@@ -626,6 +635,29 @@ class BggSpider(SitemapSpider):
             votes_true += votes_rec
 
         return votes_true > votes_false
+
+    def parse_poll(
+        self,
+        game: Selector,
+        name: str,
+        attr: str = "value",
+        *,
+        enum: bool = False,
+        func: Callable[[Iterable[float]], float] = statistics.mean,
+        default: float = 0.0,
+    ) -> float:
+        polls = game.xpath(f"poll[@name = '{name}']")
+        poll = polls[0] if polls else None
+
+        if not poll or parse_int_from_elem(poll, "@totalvotes") < self.min_votes:
+            return default
+
+        try:
+            return func(parse_votes(poll, attr, enum=enum))
+        except Exception:
+            self.logger.exception("Error parsing poll <%s>", name)
+
+        return default
 
     def extract_ranking_item(
         self,
