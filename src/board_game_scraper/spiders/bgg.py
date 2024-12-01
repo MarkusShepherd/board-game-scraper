@@ -128,13 +128,13 @@ class BggSpider(SitemapSpider):
         if self.premium_users_dir:
             self.logger.info("Premium users dir: <%s>", self.premium_users_dir)
 
-    def start_requests(self) -> Generator[Request, None, None]:
+    def start_requests(self) -> Generator[Request]:
         yield from self.premium_users_requests_from_dir()
         yield from self.user_and_collection_requests_from_files()
         yield from self.game_requests_from_files()
         yield from super().start_requests()
 
-    def game_requests_from_files(self) -> Generator[Request, None, None]:
+    def game_requests_from_files(self) -> Generator[Request]:
         bgg_ids = frozenset(
             extract_field_from_files(
                 file_paths=self.game_files,
@@ -149,7 +149,7 @@ class BggSpider(SitemapSpider):
         )
         yield from self.game_requests(bgg_ids=bgg_ids, page=1, priority=1)
 
-    def user_and_collection_requests_from_files(self) -> Generator[Request, None, None]:
+    def user_and_collection_requests_from_files(self) -> Generator[Request]:
         user_names = frozenset(
             extract_field_from_files(
                 file_paths=self.user_files,
@@ -168,7 +168,7 @@ class BggSpider(SitemapSpider):
             for user_name in user_names:
                 yield self.user_request(user_name=user_name, priority=3)
 
-    def premium_users_requests_from_dir(self) -> Generator[Request, None, None]:
+    def premium_users_requests_from_dir(self) -> Generator[Request]:
         premium_users = frozenset(load_premium_users(dirs=self.premium_users_dir))
         self.logger.info(
             "Loaded %d premium user(s) from <%s> to request",
@@ -197,7 +197,7 @@ class BggSpider(SitemapSpider):
         self.logger.warning("YOLO – trying to parse sitemap from <%s>", response.url)
         return response.body
 
-    def _parse_sitemap(self, response: Response) -> Generator[Request, None, None]:
+    def _parse_sitemap(self, response: Response) -> Generator[Request]:
         """
         @url https://boardgamegeek.com/sitemap_geekitems_boardgame_1
         @returns requests 500 500
@@ -223,7 +223,7 @@ class BggSpider(SitemapSpider):
         page: int = 1,
         priority: int = 0,
         **kwargs: Any,
-    ) -> Generator[Request, None, None]:
+    ) -> Generator[Request]:
         bgg_ids = frozenset(bgg_ids)
 
         if page == 1:
@@ -321,7 +321,7 @@ class BggSpider(SitemapSpider):
     def parse_games(
         self,
         response: TextResponse,
-    ) -> Generator[Request | GameItem | CollectionItem, None, None]:
+    ) -> Generator[Request | GameItem | CollectionItem]:
         """
         @url https://boardgamegeek.com/xmlapi2/thing?id=13,822,36218&type=boardgame&ratingcomments=1&stats=1&videos=1&pagesize=100
         @returns requests 0 0
@@ -400,7 +400,7 @@ class BggSpider(SitemapSpider):
         self,
         response: TextResponse,
         bgg_user_name: str | None = None,
-    ) -> Generator[Request | CollectionItem, None, None]:
+    ) -> Generator[Request | CollectionItem]:
         """
         @url https://boardgamegeek.com/xmlapi2/collection?username=markus+shepherd&subtype=boardgame&excludesubtype=boardgameexpansion&stats=1&version=0
         @returns requests 100
@@ -822,7 +822,7 @@ def extract_page_number(
 def value_id(
     items: Selector | SelectorList | Iterable[Selector],
     sep: str = ":",
-) -> Generator[str, None, None]:
+) -> Generator[str]:
     for item in arg_to_iter(items):
         item = cast(Selector, item)
         value = item.xpath("@value").get() or ""
@@ -841,7 +841,7 @@ def remove_rank(value: str | None) -> str | None:
 def value_id_rank(
     items: Selector | SelectorList | Iterable[Selector],
     sep: str = ":",
-) -> Generator[str, None, None]:
+) -> Generator[str]:
     for item in arg_to_iter(items):
         item = cast(Selector, item)
         value = remove_rank(item.xpath("@friendlyname").get()) or ""
@@ -875,7 +875,7 @@ def parse_int_from_elem(
 
 def parse_player_count(
     poll: Selector,
-) -> Generator[tuple[int, int, int, int], None, None]:
+) -> Generator[tuple[int, int, int, int]]:
     for result in poll.xpath("results"):
         numplayers = normalize_space(result.xpath("@numplayers").get())
         players = parse_int(numplayers)
@@ -908,7 +908,7 @@ def parse_votes(
     attr: str = "value",
     *,
     enum: bool = False,
-) -> Generator[int, None, None]:
+) -> Generator[int]:
     if not poll:
         return
 

@@ -26,7 +26,7 @@ def extract_field_from_jsonlines_file(
     field: str,
     encoding: str = "utf-8",
     converter: Callable[[Any], Any] | None = None,
-) -> Generator[Any, None, None]:
+) -> Generator[Any]:
     LOGGER.info("Extracting field <%s> from JSON lines file <%s>", field, file_path)
     with file_path.open(mode="r", encoding=encoding) as file:
         for line in file:
@@ -48,7 +48,7 @@ def extract_field_from_csv_file(
     field: str,
     encoding: str = "utf-8",
     converter: Callable[[Any], Any] | None = None,
-) -> Generator[Any, None, None]:
+) -> Generator[Any]:
     LOGGER.info("Extracting field <%s> from CSV file <%s>", field, file_path)
     with file_path.open(mode="r", encoding=encoding) as file:
         reader = csv.DictReader(file)
@@ -66,7 +66,7 @@ def extract_field_from_files(
     field: str,
     encoding: str = "utf-8",
     converter: Callable[[Any], Any] | None = None,
-) -> Generator[Any, None, None]:
+) -> Generator[Any]:
     for file_path_str in arg_to_iter(file_paths):
         file_path = Path(file_path_str).resolve()
         if not file_path.exists():
@@ -112,7 +112,7 @@ def parse_file_paths(paths: Iterable[Path | str] | str | None) -> tuple[Path, ..
 def _load_yaml(
     path: str | Path,
     encoding: str = "utf-8",
-) -> Generator[dict[str, Any], None, None]:
+) -> Generator[dict[str, Any]]:
     path = Path(path).resolve()
     LOGGER.info("Loading YAML from <%s>", path)
     try:
@@ -125,7 +125,7 @@ def _load_yaml(
 def _load_yamls(
     paths: Iterable[str | Path],
     encoding: str = "utf-8",
-) -> Generator[dict[str, Any], None, None]:
+) -> Generator[dict[str, Any]]:
     for path in paths:
         yield from _load_yaml(path, encoding)
 
@@ -135,7 +135,7 @@ def load_premium_users(
     files: str | Path | Iterable[str | Path] | None = None,
     compare_date: datetime | str | None = None,
     encoding: str = "utf-8",
-) -> Generator[str, None, None]:
+) -> Generator[str]:
     """Load premium users from YAML files and compare against given date."""
 
     compare_date = parse_date(compare_date) or now()
