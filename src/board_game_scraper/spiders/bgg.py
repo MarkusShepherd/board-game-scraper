@@ -29,6 +29,7 @@ from board_game_scraper.utils.files import (
     parse_file_paths,
 )
 from board_game_scraper.utils.parsers import parse_int
+from board_game_scraper.utils.strings import lower_or_none
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -189,8 +190,8 @@ class BggSpider(SitemapSpider):
     def _parse_sitemap(self, response: Response) -> Generator[Request, None, None]:
         """
         @url https://boardgamegeek.com/sitemap_geekitems_boardgame_1
-        @returns items 0 0
         @returns requests 500 500
+        @returns items 0 0
         """
 
         bgg_ids: set[int] = set()
@@ -313,9 +314,17 @@ class BggSpider(SitemapSpider):
     ) -> Generator[Request | GameItem | CollectionItem, None, None]:
         """
         @url https://boardgamegeek.com/xmlapi2/thing?id=13,822,36218&type=boardgame&ratingcomments=1&stats=1&videos=1&pagesize=100
-        @returns items 303 303
-        @returns requests 300 300
-        @scrapes bgg_id scraped_at
+        @returns requests 0 0
+        @returns items 3 3
+        @scrapes name alt_name year game_type description designer artist publisher \
+            url official_url image_url video_url min_players max_players \
+            min_players_rec max_players_rec min_players_best max_players_best \
+            min_age max_age min_age_rec max_age_rec min_time max_time category \
+            mechanic cooperative compilation compilation_of family expansion \
+            implementation integration rank add_rank num_votes avg_rating \
+            stddev_rating bayes_rating complexity language_dependency num_owned \
+            num_trading num_wanting num_wishing num_comments num_weights bgg_id \
+            scraped_at
         """
 
         page, max_page = extract_page_number(response, self.request_page_size)
@@ -380,14 +389,16 @@ class BggSpider(SitemapSpider):
     def parse_collection(
         self,
         response: TextResponse,
-        bgg_user_name: str,
+        bgg_user_name: str | None = None,
     ) -> Generator[Request | CollectionItem, None, None]:
-        bgg_user_name = bgg_user_name.lower()
-        self.logger.debug(
-            "Parsing collection for user <%s> from <%s>",
-            bgg_user_name,
-            response.url,
-        )
+        """
+        @url https://boardgamegeek.com/xmlapi2/collection?username=markus+shepherd&subtype=boardgame&excludesubtype=boardgameexpansion&stats=1&version=0
+        @returns requests 100
+        @returns items 0 0
+        @scrapes item_id bgg_id bgg_user_name bgg_user_owned bgg_user_prev_owned \
+            bgg_user_for_trade bgg_user_want_to_play bgg_user_want_to_buy \
+            bgg_user_preordered bgg_user_play_count updated_at scraped_at
+        """
 
         games = response.xpath("/items/item")
         bgg_ids = map(parse_int, games.xpath("@objectid").getall())
@@ -401,7 +412,7 @@ class BggSpider(SitemapSpider):
             collection_item = self.extract_collection_item(
                 response=response,
                 selector=cast(Selector, game),
-                bgg_user_name=bgg_user_name,
+                bgg_user_name=lower_or_none(bgg_user_name),
             )
             if collection_item:
                 yield collection_item
@@ -411,6 +422,14 @@ class BggSpider(SitemapSpider):
         response: TextResponse,
         bgg_user_name: str | None = None,
     ) -> UserItem:
+        """
+        @url https://boardgamegeek.com/xmlapi2/user?name=markus+shepherd
+        @returns requests 0 0
+        @returns items 1 1
+        @scrapes item_id bgg_user_name first_name last_name registered last_login \
+            country city external_link image_url scraped_at
+        """
+
         return self.extract_user_item(
             response=response,
             selector=cast(Selector, response.xpath("/user")[0]),
