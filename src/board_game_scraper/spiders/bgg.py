@@ -578,7 +578,16 @@ class BggSpider(SitemapSpider):
         ldr.add_xpath("stddev_rating", "statistics/ratings/stddev/@value")
         ldr.add_xpath("bayes_rating", "statistics/ratings/bayesaverage/@value")
         ldr.add_xpath("complexity", "statistics/ratings/averageweight/@value")
-        # TODO: language_dependency
+        ldr.add_value(
+            "language_dependency",
+            self.parse_poll(
+                selector,
+                "language_dependence",
+                attr="level",
+                enum=True,
+                func=statistics.median_grouped,
+            ),
+        )
 
         ldr.add_xpath("num_owned", "statistics/ratings/owned/@value")
         ldr.add_xpath("num_trading", "statistics/ratings/trading/@value")
