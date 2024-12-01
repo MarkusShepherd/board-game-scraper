@@ -5,6 +5,7 @@ import math
 import re
 import warnings
 from collections.abc import Iterable
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlencode
 
@@ -22,12 +23,15 @@ from board_game_scraper.loaders import (
     RankingLoader,
     UserLoader,
 )
-from board_game_scraper.utils.files import extract_field_from_files, parse_file_paths
+from board_game_scraper.utils.files import (
+    extract_field_from_files,
+    load_premium_users,
+    parse_file_paths,
+)
 from board_game_scraper.utils.parsers import parse_int
 
 if TYPE_CHECKING:
     from collections.abc import Generator
-    from pathlib import Path
 
     from scrapy.http import Response
     from scrapy.selector.unified import SelectorList
@@ -52,6 +56,7 @@ class BggSpider(SitemapSpider):
 
     game_files: tuple[Path, ...] = ()
     user_files: tuple[Path, ...] = ()
+    premium_users_dir: Path | None = None
 
     # Start URLs for sitemap crawling
     sitemap_urls = ("https://boardgamegeek.com/robots.txt",)
@@ -75,6 +80,7 @@ class BggSpider(SitemapSpider):
         scrape_users: bool | int | str | None = False,
         game_files: Iterable[Path | str] | str | None = None,
         user_files: Iterable[Path | str] | str | None = None,
+        premium_users_dir: Path | str | None = None,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -105,9 +111,16 @@ class BggSpider(SitemapSpider):
         self.user_files = parse_file_paths(user_files)
         self.logger.info("User and collection requests from files: %s", self.user_files)
 
+        self.premium_users_dir = (
+            Path(premium_users_dir).resolve() if premium_users_dir else None
+        )
+        if self.premium_users_dir:
+            self.logger.info("Premium users dir: <%s>", self.premium_users_dir)
+
     def start_requests(self) -> Generator[Request, None, None]:
-        yield from self.game_requests_from_files()
+        yield from self.premium_users_requests_from_dir()
         yield from self.user_and_collection_requests_from_files()
+        yield from self.game_requests_from_files()
         yield from super().start_requests()
 
     def game_requests_from_files(self) -> Generator[Request, None, None]:
@@ -143,6 +156,28 @@ class BggSpider(SitemapSpider):
         if self.scrape_users:
             for user_name in user_names:
                 yield self.user_request(user_name=user_name, priority=3)
+
+    def premium_users_requests_from_dir(self) -> Generator[Request, None, None]:
+        premium_users = frozenset(load_premium_users(dirs=self.premium_users_dir))
+        self.logger.info(
+            "Loaded %d premium user(s) from <%s> to request",
+            len(premium_users),
+            self.premium_users_dir,
+        )
+        if self.scrape_collections:
+            for user_name in premium_users:
+                yield self.collection_request(
+                    user_name=user_name,
+                    priority=3,
+                    dont_filter=True,
+                )
+        if self.scrape_users:
+            for user_name in premium_users:
+                yield self.user_request(
+                    user_name=user_name,
+                    priority=4,
+                    dont_filter=True,
+                )
 
     def _get_sitemap_body(self, response: Response) -> bytes:
         sitemap_body = super()._get_sitemap_body(response)
@@ -198,11 +233,19 @@ class BggSpider(SitemapSpider):
                 pagesize=str(self.request_page_size),
             )
 
+            kwargs_copy = kwargs.copy()
+            kwargs_copy.setdefault("meta", {}).update(
+                {
+                    "bgg_ids": chunk,
+                    "page": page,
+                },
+            )
+
             yield Request(
                 url=url,
                 callback=self.parse_games,  # type: ignore[arg-type]
                 priority=priority,
-                meta={**kwargs, "bgg_ids": chunk, "page": page},
+                **kwargs_copy,
             )
 
     def has_seen_bgg_id(self, bgg_id: int) -> bool:
@@ -240,7 +283,7 @@ class BggSpider(SitemapSpider):
             callback=self.parse_collection,  # type: ignore[arg-type]
             cb_kwargs={"bgg_user_name": user_name},
             priority=priority,
-            meta=kwargs,
+            **kwargs,
         )
 
     def user_request(
@@ -257,7 +300,7 @@ class BggSpider(SitemapSpider):
             callback=self.parse_user,  # type: ignore[arg-type]
             cb_kwargs={"bgg_user_name": user_name},
             priority=priority,
-            meta=kwargs,
+            **kwargs,
         )
 
     def api_url(self, action: str, **kwargs: str | None) -> str:

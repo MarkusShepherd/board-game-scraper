@@ -104,6 +104,9 @@ classmethod-decorators = [
     "pydantic.root_validator",
 ]
 
+[tool.ruff.lint.pylint]
+max-args = 10
+
 [tool.pytest.ini_options]
 addopts = """\
     --cov board_game_scraper \

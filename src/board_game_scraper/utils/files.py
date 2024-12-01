@@ -111,7 +111,7 @@ def parse_file_paths(paths: Iterable[Path | str] | str | None) -> tuple[Path, ..
 def _load_yaml(
     path: str | Path,
     encoding: str = "utf-8",
-) -> Iterable[dict[str, Any]]:
+) -> Generator[dict[str, Any], None, None]:
     path = Path(path).resolve()
     LOGGER.info("Loading YAML from <%s>", path)
     try:
@@ -124,7 +124,7 @@ def _load_yaml(
 def _load_yamls(
     paths: Iterable[str | Path],
     encoding: str = "utf-8",
-) -> Iterable[dict[str, Any]]:
+) -> Generator[dict[str, Any], None, None]:
     for path in paths:
         yield from _load_yaml(path, encoding)
 
@@ -134,7 +134,7 @@ def load_premium_users(
     files: str | Path | Iterable[str | Path] | None = None,
     compare_date: datetime | str | None = None,
     encoding: str = "utf-8",
-) -> Iterable[str]:
+) -> Generator[str, None, None]:
     """Load premium users from YAML files and compare against given date."""
 
     compare_date = parse_date(compare_date) or now()
