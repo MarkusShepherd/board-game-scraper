@@ -48,7 +48,7 @@ DIGITS_REGEX = re.compile(r"^\D*(\d+).*$")
 
 class BggSpider(SitemapSpider):
     name = "bgg"
-    allowed_domains = ("boardgamegeek.com",)
+    allowed_domains = ("boardgamegeek.com", "geekdo-images.com")
 
     # https://boardgamegeek.com/wiki/page/BGG_XML_API2
     bgg_xml_api_url = "https://boardgamegeek.com/xmlapi2"
@@ -352,7 +352,7 @@ class BggSpider(SitemapSpider):
                 bgg_ids=bgg_ids,
                 page=page + 1,
                 priority=-page - 1,
-                max_page=max_page,
+                meta={"max_page": max_page},
             )
 
         for game in response.xpath("/items/item"):
@@ -663,8 +663,13 @@ class BggSpider(SitemapSpider):
         if not poll or parse_int_from_elem(poll, "@totalvotes") < self.min_votes:
             return default
 
+        votes = tuple(parse_votes(poll, attr, enum=enum))
+
+        if not votes:
+            return default
+
         try:
-            return func(parse_votes(poll, attr, enum=enum))
+            return func(votes)
         except Exception:
             self.logger.exception("Error parsing poll <%s>", name)
 
