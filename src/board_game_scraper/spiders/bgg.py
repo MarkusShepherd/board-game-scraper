@@ -30,6 +30,7 @@ from board_game_scraper.utils.files import (
 )
 from board_game_scraper.utils.parsers import parse_int
 from board_game_scraper.utils.strings import lower_or_none
+from board_game_scraper.utils.urls import extract_query_param
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -394,7 +395,7 @@ class BggSpider(SitemapSpider):
         """
         @url https://boardgamegeek.com/xmlapi2/collection?username=markus+shepherd&subtype=boardgame&excludesubtype=boardgameexpansion&stats=1&version=0
         @returns requests 100
-        @returns items 0 0
+        @returns items 2000
         @scrapes item_id bgg_id bgg_user_name bgg_user_owned bgg_user_prev_owned \
             bgg_user_for_trade bgg_user_want_to_play bgg_user_want_to_buy \
             bgg_user_preordered bgg_user_play_count updated_at scraped_at
@@ -406,6 +407,10 @@ class BggSpider(SitemapSpider):
             bgg_ids=filter(None, bgg_ids),
             page=1,
             priority=-1,
+        )
+
+        bgg_user_name = lower_or_none(
+            bgg_user_name or extract_query_param(response.url, "username"),
         )
 
         for game in games:
@@ -429,6 +434,10 @@ class BggSpider(SitemapSpider):
         @scrapes item_id bgg_user_name first_name last_name registered last_login \
             country city external_link image_url scraped_at
         """
+
+        bgg_user_name = lower_or_none(
+            bgg_user_name or extract_query_param(response.url, "name"),
+        )
 
         return self.extract_user_item(
             response=response,

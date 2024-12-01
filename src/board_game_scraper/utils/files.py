@@ -4,7 +4,7 @@ import csv
 import json
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import yaml
 from scrapy.utils.misc import arg_to_iter
@@ -15,6 +15,7 @@ from board_game_scraper.utils.parsers import parse_date
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Iterable
     from datetime import datetime
+    from typing import Any
 
 LOGGER = logging.getLogger(__name__)
 

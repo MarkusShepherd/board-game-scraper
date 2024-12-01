@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import string as string_lib
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Any
 
 PRINTABLE_SET = frozenset(string_lib.printable)
 NON_PRINTABLE_SET = frozenset(chr(i) for i in range(128)) - PRINTABLE_SET

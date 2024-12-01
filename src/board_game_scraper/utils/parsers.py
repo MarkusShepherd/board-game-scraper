@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from datetime import date as date_cls
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Any
 
 
 def parse_int(string: Any, base: int = 10) -> int | None:

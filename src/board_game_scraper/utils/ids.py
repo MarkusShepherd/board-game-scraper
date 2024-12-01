@@ -1,21 +1,16 @@
 from __future__ import annotations
 
-import logging
 import re
 from typing import TYPE_CHECKING
-from urllib.parse import parse_qs, unquote_plus, urlparse
-
-from scrapy.utils.misc import arg_to_iter
+from urllib.parse import unquote_plus, urlparse
 
 from board_game_scraper.utils.iterables import clear_list
 from board_game_scraper.utils.parsers import parse_int
+from board_game_scraper.utils.urls import extract_query_param, parse_url
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
-    from re import Pattern
     from urllib.parse import ParseResult
 
-LOGGER = logging.getLogger(__name__)
 REGEX_BGG_ID = re.compile(r"^/(board)?game/(\d+).*$")
 REGEX_BGG_USER = re.compile(r"^/user/([^/]+).*$")
 REGEX_WIKIDATA_ID = re.compile(r"^/(wiki|entity|resource)/Q(\d+).*$")
@@ -26,44 +21,6 @@ REGEX_SPIELEN_ID = re.compile(
     r"^/(alle-brettspiele|messeneuheiten|ausgezeichnet-\d+)/(\w[^/]*).*$",
 )
 REGEX_FREEBASE_ID = re.compile(r"^/ns/(g|m)\.([^/]+).*$")
-
-
-def extract_query_param(url: str | ParseResult, field: str) -> str | None:
-    """extract a specific field from URL query parameters"""
-
-    url = urlparse(url) if isinstance(url, str) else url
-    query = parse_qs(url.query)
-    values = query.get(field)
-
-    return values[0] if values else None
-
-
-def _match(string: str, comparison: str | Pattern[str]) -> bool:
-    return (
-        string == comparison
-        if isinstance(comparison, str)
-        else bool(comparison.match(string))
-    )
-
-
-def parse_url(
-    url: str | ParseResult | None,
-    hostnames: Iterable[str | Pattern[str]] | None = None,
-) -> ParseResult | None:
-    """parse URL and optionally filter for hosts"""
-    url = urlparse(url) if isinstance(url, str) else url
-    hostnames = tuple(arg_to_iter(hostnames))
-    return (
-        url
-        if url
-        and url.hostname
-        and url.path
-        and (
-            not hostnames
-            or any(_match(url.hostname, hostname) for hostname in hostnames)
-        )
-        else None
-    )
 
 
 def extract_bgg_id(url: str | ParseResult | None) -> int | None:

@@ -13,15 +13,14 @@ from board_game_scraper.utils.ids import (
     extract_freebase_id,
     extract_ids,
     extract_luding_id,
-    extract_query_param,
     extract_spielen_id,
     extract_wikidata_id,
     extract_wikipedia_id,
-    parse_url,
 )
 from board_game_scraper.utils.iterables import clear_iterable, clear_list
 from board_game_scraper.utils.parsers import parse_date, parse_float, parse_int
 from board_game_scraper.utils.strings import lower_or_none, normalize_space, to_str
+from board_game_scraper.utils.urls import extract_query_param, parse_url
 
 __all__ = [
     "clear_iterable",
